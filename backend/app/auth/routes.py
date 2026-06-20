@@ -18,7 +18,7 @@ def auth_config() -> dict[str, Any]:
     settings = get_settings()
     payload: dict[str, Any] = {"enabled": settings.auth.enabled}
     if settings.auth.enabled:
-        payload["login_url"] = "/api/auth/login"
+        payload["login_url"] = "/auth/login"
     return payload
 
 

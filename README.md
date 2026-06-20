@@ -65,3 +65,29 @@ During local development, set `redirect_uri` to `http://localhost:5173/api/auth/
 export SESSION_SECRET=your-random-secret
 export OIDC_CLIENT_SECRET=your-keycloak-client-secret
 ```
+
+## Docker
+
+The image is a multi-stage build: Node builds the frontend, Python slim runs the API and serves static files from a single container (~180 MB).
+
+```bash
+docker build -t spliffy .
+docker run --rm -p 8000:8000 \
+  -e SESSION_SECRET=change-me \
+  -v "$(pwd)/backend/config.yaml:/app/config.yaml:ro" \
+  spliffy
+```
+
+Mount your production `config.yaml` at runtime — do not bake secrets into the image.
+
+In production, set `auth.oidc.redirect_uri` to your public app URL (e.g. `https://spliffy.example.com/auth/callback`).
+
+## GitLab CI
+
+`.gitlab-ci.yml` builds and pushes to the GitLab Container Registry on every push to the default branch:
+
+- `$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA`
+- `$CI_REGISTRY_IMAGE:latest`
+
+Enable **Container Registry** on the GitLab project. The job uses Docker-in-Docker and the built-in `CI_REGISTRY_*` credentials — no extra secrets required.
+

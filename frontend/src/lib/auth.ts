@@ -15,8 +15,14 @@ export type MeResponse = {
   user: AuthUser | null
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
+
+function apiPath(path: string) {
+  return `${API_BASE}${path}`
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiPath(path), {
     credentials: 'include',
     ...init,
     headers: {
@@ -33,11 +39,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function fetchAuthConfig() {
-  return apiFetch<AuthConfig>('/api/auth/config')
+  return apiFetch<AuthConfig>('/auth/config')
 }
 
 export function fetchMe() {
-  return fetch('/api/auth/me', { credentials: 'include' }).then(async (response) => {
+  return fetch(apiPath('/auth/me'), { credentials: 'include' }).then(async (response) => {
     if (response.status === 401) {
       return { authenticated: false, user: null } satisfies MeResponse
     }
@@ -49,9 +55,9 @@ export function fetchMe() {
 }
 
 export function logout() {
-  return apiFetch<{ ok: boolean }>('/api/auth/logout', { method: 'POST' })
+  return apiFetch<{ ok: boolean }>('/auth/logout', { method: 'POST' })
 }
 
 export function login(loginUrl: string) {
-  window.location.href = loginUrl
+  window.location.href = apiPath(loginUrl)
 }

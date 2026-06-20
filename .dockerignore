@@ -1,0 +1,13 @@
+.git
+.github
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.env
+**/.idea
+**/.vscode
+**/node_modules
+frontend/dist
+**/*.log
+**/.DS_Store

@@ -1,7 +1,10 @@
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import router as auth_router
@@ -39,6 +42,10 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health():
         return {"status": "ok"}
+
+    static_dir = Path(os.environ.get("STATIC_DIR", ""))
+    if static_dir.is_dir():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
 
     return app
 
