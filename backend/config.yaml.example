@@ -1,0 +1,17 @@
+server:
+  cors_origins:
+    - http://localhost:5173
+  session_secret: ${SESSION_SECRET}
+
+auth:
+  enabled: true
+  post_login_redirect: http://localhost:5173
+  oidc:
+    issuer_url: http://localhost:8080/realms/spliffy
+    client_id: spliffy
+    client_secret: ${OIDC_CLIENT_SECRET}
+    redirect_uri: http://localhost:5173/api/auth/callback
+    scopes:
+      - openid
+      - profile
+      - email

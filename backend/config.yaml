@@ -1,0 +1,20 @@
+server:
+  cors_origins:
+    - http://localhost:5173
+  session_secret: ${SESSION_SECRET}
+
+auth:
+  enabled: false
+  post_login_redirect: http://localhost:5173
+
+  # Uncomment and set auth.enabled: true to enable Keycloak OIDC login.
+  # oidc:
+  #   issuer_url: http://localhost:8080/realms/spliffy
+  #   client_id: spliffy
+  #   client_secret: ${OIDC_CLIENT_SECRET}
+  #   # Use the Vite dev proxy so the session cookie stays on the frontend origin.
+  #   redirect_uri: http://localhost:5173/api/auth/callback
+  #   scopes:
+  #     - openid
+  #     - profile
+  #     - email

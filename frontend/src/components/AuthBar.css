@@ -1,0 +1,25 @@
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.auth-user {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.auth-bar button {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.auth-bar button:hover {
+  background: #f9fafb;
+}
