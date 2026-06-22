@@ -1,4 +1,5 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { fetchChatConfig, streamChatMessage } from '../lib/chat'
 import './Chat.css'
@@ -9,14 +10,15 @@ type Message = {
   content: string
 }
 
-function userInitial(userName?: string | null) {
+function userInitial(userName: string | null | undefined, fallback: string) {
   if (!userName) {
-    return 'Y'
+    return fallback
   }
-  return userName.trim().charAt(0).toUpperCase() || 'Y'
+  return userName.trim().charAt(0).toUpperCase() || fallback
 }
 
 export function Chat() {
+  const { t } = useTranslation()
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -49,21 +51,21 @@ export function Chat() {
   }, [input])
 
   if (authLoading || chatEnabled === null) {
-    return <div className="chat-panel chat-status">Loading chat…</div>
+    return <div className="chat-panel chat-status">{t('chat.loading')}</div>
   }
 
   if (!chatEnabled) {
-    return <div className="chat-panel chat-status">Chat is not configured on the server.</div>
+    return <div className="chat-panel chat-status">{t('chat.notConfigured')}</div>
   }
 
   if (authConfig?.enabled && !user) {
     return (
       <div className="chat-panel chat-status">
         <div className="chat-status-card">
-          <h2>Welcome to Spliffy</h2>
-          <p>Sign in to start chatting with your assistant.</p>
+          <h2>{t('chat.welcomeTitle')}</h2>
+          <p>{t('chat.welcomeBody')}</p>
           <button type="button" onClick={login}>
-            Log in
+            {t('auth.logIn')}
           </button>
         </div>
       </div>
@@ -95,7 +97,7 @@ export function Chat() {
         { query, conversation_id: conversationId },
         (streamEvent) => {
           if (streamEvent.event === 'error') {
-            setError(streamEvent.message ?? 'Chat failed')
+            setError(streamEvent.message ?? t('chat.failed'))
             return
           }
 
@@ -115,7 +117,7 @@ export function Chat() {
         },
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Chat failed')
+      setError(err instanceof Error ? err.message : t('chat.failed'))
       setMessages((current) => current.filter((message) => message.id !== assistantId))
     } finally {
       setSending(false)
@@ -135,8 +137,8 @@ export function Chat() {
         <div className="chat-messages">
           {messages.length === 0 ? (
             <div className="chat-empty">
-              <h2>How can I help?</h2>
-              <p>Ask a question to start the conversation.</p>
+              <h2>{t('chat.emptyTitle')}</h2>
+              <p>{t('chat.emptyBody')}</p>
             </div>
           ) : (
             messages.map((message) => {
@@ -152,13 +154,13 @@ export function Chat() {
                     className={`chat-avatar chat-avatar--${message.role}`}
                     aria-hidden="true"
                   >
-                    {isUser ? userInitial(displayName) : 'S'}
+                    {isUser ? userInitial(displayName, t('chat.you').charAt(0)) : 'S'}
                   </div>
                   <div className="chat-bubble-wrap">
-                    <div className="chat-meta">{isUser ? 'You' : 'Spliffy'}</div>
+                    <div className="chat-meta">{isUser ? t('chat.you') : t('chat.assistant')}</div>
                     <div className={`chat-bubble chat-bubble--${message.role}`}>
                       {isStreaming ? (
-                        <span className="chat-typing" aria-label="Assistant is typing">
+                        <span className="chat-typing" aria-label={t('chat.typing')}>
                           <span />
                           <span />
                           <span />
@@ -187,7 +189,7 @@ export function Chat() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message Spliffy…"
+              placeholder={t('chat.placeholder')}
               rows={1}
               disabled={sending}
             />
@@ -195,7 +197,7 @@ export function Chat() {
               className="chat-send"
               type="submit"
               disabled={sending || !input.trim()}
-              aria-label="Send message"
+              aria-label={t('chat.send')}
             >
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <path
@@ -205,7 +207,7 @@ export function Chat() {
               </svg>
             </button>
           </form>
-          <p className="chat-hint">Enter to send · Shift+Enter for a new line</p>
+          <p className="chat-hint">{t('chat.hint')}</p>
         </div>
       </div>
     </div>

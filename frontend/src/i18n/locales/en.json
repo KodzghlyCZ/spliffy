@@ -1,0 +1,43 @@
+{
+  "app": {
+    "name": "Spliffy"
+  },
+  "theme": {
+    "ariaLabel": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "lightTitle": "Light mode",
+    "darkTitle": "Dark mode",
+    "systemTitle": "Use system setting"
+  },
+  "language": {
+    "ariaLabel": "Language",
+    "en": "EN",
+    "cs": "CS",
+    "enTitle": "English",
+    "csTitle": "Čeština"
+  },
+  "auth": {
+    "loading": "Loading…",
+    "logIn": "Log in",
+    "logOut": "Log out"
+  },
+  "chat": {
+    "loading": "Loading chat…",
+    "notConfigured": "Chat is not configured on the server.",
+    "welcomeTitle": "Welcome to Spliffy",
+    "welcomeBody": "Sign in to start chatting with your assistant.",
+    "emptyTitle": "How can I help?",
+    "emptyBody": "Ask a question to start the conversation.",
+    "you": "You",
+    "assistant": "Spliffy",
+    "typing": "Assistant is typing",
+    "placeholder": "Message Spliffy…",
+    "send": "Send message",
+    "hint": "Enter to send · Shift+Enter for a new line",
+    "failed": "Chat failed",
+    "requestFailed": "Chat request failed ({{status}})",
+    "streamingUnsupported": "Streaming is not supported in this browser"
+  }
+}

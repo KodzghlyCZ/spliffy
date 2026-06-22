@@ -1,0 +1,43 @@
+{
+  "app": {
+    "name": "Spliffy"
+  },
+  "theme": {
+    "ariaLabel": "Vzhled",
+    "light": "Světlý",
+    "dark": "Tmavý",
+    "system": "Systém",
+    "lightTitle": "Světlý režim",
+    "darkTitle": "Tmavý režim",
+    "systemTitle": "Podle nastavení systému"
+  },
+  "language": {
+    "ariaLabel": "Jazyk",
+    "en": "EN",
+    "cs": "CS",
+    "enTitle": "English",
+    "csTitle": "Čeština"
+  },
+  "auth": {
+    "loading": "Načítání…",
+    "logIn": "Přihlásit se",
+    "logOut": "Odhlásit se"
+  },
+  "chat": {
+    "loading": "Načítání chatu…",
+    "notConfigured": "Chat není na serveru nakonfigurován.",
+    "welcomeTitle": "Vítejte ve Spliffy",
+    "welcomeBody": "Přihlaste se a začněte chatovat s asistentem.",
+    "emptyTitle": "S čím vám mohu pomoci?",
+    "emptyBody": "Položte otázku a začněte konverzaci.",
+    "you": "Vy",
+    "assistant": "Spliffy",
+    "typing": "Asistent píše",
+    "placeholder": "Napište zprávu Spliffy…",
+    "send": "Odeslat zprávu",
+    "hint": "Enter pro odeslání · Shift+Enter pro nový řádek",
+    "failed": "Chat selhal",
+    "requestFailed": "Požadavek chatu selhal ({{status}})",
+    "streamingUnsupported": "Tento prohlížeč nepodporuje streamování"
+  }
+}

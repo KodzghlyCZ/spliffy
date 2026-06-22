@@ -1,0 +1,30 @@
+.language-toggle {
+  display: inline-flex;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-muted);
+}
+
+.language-toggle__btn {
+  padding: 0.35rem 0.7rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.language-toggle__btn:hover {
+  color: var(--text-h);
+}
+
+.language-toggle__btn--active {
+  background: var(--bg-elevated);
+  color: var(--text-h);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}

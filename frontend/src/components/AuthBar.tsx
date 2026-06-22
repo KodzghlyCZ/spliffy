@@ -1,11 +1,13 @@
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import './AuthBar.css'
 
 export function AuthBar() {
+  const { t } = useTranslation()
   const { loading, config, user, login, logout } = useAuth()
 
   if (loading) {
-    return <div className="auth-bar">Loading…</div>
+    return <div className="auth-bar">{t('auth.loading')}</div>
   }
 
   if (!config?.enabled) {
@@ -18,12 +20,12 @@ export function AuthBar() {
         <>
           <span className="auth-user">{user.name ?? user.email ?? user.sub}</span>
           <button type="button" onClick={() => void logout()}>
-            Log out
+            {t('auth.logOut')}
           </button>
         </>
       ) : (
         <button type="button" onClick={login}>
-          Log in
+          {t('auth.logIn')}
         </button>
       )}
     </div>

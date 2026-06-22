@@ -38,6 +38,8 @@ App: http://localhost:5173
 
 The Vite dev server proxies `/api/*` to the FastAPI backend on port 8000.
 
+UI copy uses [i18next](https://www.i18next.com/) (`react-i18next`). Locale files live in `frontend/src/i18n/locales/` (currently `en`, `cs`). The header language toggle stores the choice in `localStorage` (`spliffy-lang`); otherwise the browser language is used.
+
 ## Authentication (optional)
 
 Auth is disabled by default. When enabled, the backend runs a standard OIDC authorization-code flow against Keycloak and stores the session in a signed cookie.

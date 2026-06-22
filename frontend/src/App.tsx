@@ -1,5 +1,6 @@
 import { AuthBar } from './components/AuthBar'
 import { Chat } from './components/Chat'
+import { LanguageToggle } from './components/LanguageToggle'
 import { ThemeToggle } from './components/ThemeToggle'
 import './App.css'
 
@@ -14,6 +15,7 @@ function App() {
           <h1>Spliffy</h1>
         </div>
         <div className="app-header-actions">
+          <LanguageToggle />
           <ThemeToggle />
           <AuthBar />
         </div>
