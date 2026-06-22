@@ -1,3 +1,5 @@
+import { apiFetch, apiPath } from './api'
+
 export type AuthUser = {
   sub: string
   email?: string
@@ -13,29 +15,6 @@ export type AuthConfig = {
 export type MeResponse = {
   authenticated: boolean
   user: AuthUser | null
-}
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
-
-function apiPath(path: string) {
-  return `${API_BASE}${path}`
-}
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiPath(path), {
-    credentials: 'include',
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
-  }
-
-  return response.json() as Promise<T>
 }
 
 export function fetchAuthConfig() {

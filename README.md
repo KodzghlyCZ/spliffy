@@ -64,7 +64,28 @@ During local development, set `redirect_uri` to `http://localhost:5173/api/auth/
 ```bash
 export SESSION_SECRET=your-random-secret
 export OIDC_CLIENT_SECRET=your-keycloak-client-secret
+export DIFY_API_KEY=your-dify-app-api-key
 ```
+
+## Dify chat
+
+Spliffy proxies the Dify **Chat App** API so the API key stays on the server. Enable it in `config.yaml`:
+
+```yaml
+dify:
+  enabled: true
+  base_url: https://dify.example.com/v1   # self-hosted: include /v1
+  api_key: ${DIFY_API_KEY}
+```
+
+Create a **Chat App** in Dify, copy its API key from **API Access**, and set `DIFY_API_KEY` in the runtime `.env`. The backend streams responses from `POST /v1/chat-messages` to the browser via `POST /chat/messages`.
+
+When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `sub`). Auth must be disabled or the user must be logged in to chat.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /chat/config` | Whether Dify chat is configured |
+| `POST /chat/messages` | Send a message (SSE stream) |
 
 ## Docker
 

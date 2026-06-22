@@ -1,4 +1,5 @@
 import { AuthBar } from './components/AuthBar'
+import { Chat } from './components/Chat'
 import './App.css'
 
 function App() {
@@ -8,7 +9,9 @@ function App() {
         <h1>Spliffy</h1>
         <AuthBar />
       </header>
-      <main className="app-main" />
+      <main className="app-main">
+        <Chat />
+      </main>
     </div>
   )
 }

@@ -1,0 +1,72 @@
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+from starlette.responses import StreamingResponse
+
+from app.auth.routes import get_current_user, require_user
+from app.dify.client import DifyError, stream_chat_message
+from app.settings import DifySettings, get_settings
+
+router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+class ChatMessageRequest(BaseModel):
+    query: str = Field(min_length=1)
+    conversation_id: str = ""
+    inputs: dict[str, object] = Field(default_factory=dict)
+
+
+def _dify_settings() -> DifySettings:
+    settings = get_settings()
+    if not settings.dify.enabled or not settings.dify.api_key:
+        raise HTTPException(status_code=503, detail="Chat is not configured")
+    return settings.dify
+
+
+def _dify_user_id(request: Request) -> str:
+    settings = get_settings()
+    if settings.auth.enabled:
+        user = require_user(request)
+        return str(user["sub"])
+
+    anonymous_id = request.session.get("dify_user_id")
+    if anonymous_id is None:
+        anonymous_id = str(uuid.uuid4())
+        request.session["dify_user_id"] = anonymous_id
+    return str(anonymous_id)
+
+
+@router.get("/config")
+def chat_config() -> dict[str, bool]:
+    settings = get_settings()
+    return {"enabled": settings.dify.enabled and bool(settings.dify.api_key)}
+
+
+@router.post("/messages")
+async def send_message(
+    request: Request,
+    body: ChatMessageRequest,
+    dify: Annotated[DifySettings, Depends(_dify_settings)],
+):
+    settings = get_settings()
+    if settings.auth.enabled and get_current_user(request) is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user_id = _dify_user_id(request)
+
+    async def event_stream():
+        try:
+            async for chunk in stream_chat_message(
+                dify,
+                query=body.query,
+                user=user_id,
+                conversation_id=body.conversation_id,
+                inputs=body.inputs,
+            ):
+                yield chunk
+        except DifyError as exc:
+            yield f'data: {{"event":"error","message":"Dify error {exc.status_code}"}}\n\n'.encode()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

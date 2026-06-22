@@ -25,10 +25,18 @@ class AuthSettings:
 
 
 @dataclass(frozen=True)
+class DifySettings:
+    enabled: bool
+    base_url: str
+    api_key: str
+
+
+@dataclass(frozen=True)
 class Settings:
     cors_origins: tuple[str, ...]
     session_secret: str
     auth: AuthSettings
+    dify: DifySettings
 
 
 def _config_path() -> Path:
@@ -63,6 +71,10 @@ def _read_settings() -> Settings:
             scopes=tuple(get("auth.oidc.scopes", default=["openid", "profile", "email"])),
         )
 
+    dify_enabled = bool(get("dify.enabled", default=False))
+    dify_base_url = str(get("dify.base_url", default="http://127.0.0.1/v1")).rstrip("/")
+    dify_api_key = str(get("dify.api_key", default=""))
+
     return Settings(
         cors_origins=tuple(cors_origins),
         session_secret=session_secret,
@@ -70,6 +82,11 @@ def _read_settings() -> Settings:
             enabled=auth_enabled,
             post_login_redirect=post_login_redirect,
             oidc=oidc,
+        ),
+        dify=DifySettings(
+            enabled=dify_enabled,
+            base_url=dify_base_url,
+            api_key=dify_api_key,
         ),
     )
 
