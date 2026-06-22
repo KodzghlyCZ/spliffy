@@ -89,6 +89,7 @@ When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `su
 | Endpoint | Description |
 |----------|-------------|
 | `GET /chat/config` | Whether Dify chat is configured |
+| `GET /chat/parameters` | Opening message and suggested questions from the Dify app |
 | `POST /chat/messages` | Send a message (SSE stream) |
 
 ## Docker

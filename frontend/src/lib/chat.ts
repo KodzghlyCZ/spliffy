@@ -18,8 +18,17 @@ export type DifyStreamEvent = {
   message?: string
 }
 
+export type ChatParameters = {
+  opening_statement: string
+  suggested_questions: string[]
+}
+
 export function fetchChatConfig() {
   return apiFetch<ChatConfig>('/chat/config')
+}
+
+export function fetchChatParameters() {
+  return apiFetch<ChatParameters>('/chat/parameters')
 }
 
 function parseSseChunk(buffer: string): { events: DifyStreamEvent[]; rest: string } {

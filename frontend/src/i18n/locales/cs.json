@@ -36,6 +36,7 @@
     "placeholder": "Napište zprávu Spliffy…",
     "send": "Odeslat zprávu",
     "hint": "Enter pro odeslání · Shift+Enter pro nový řádek",
+    "suggestions": "Navrhované otázky",
     "failed": "Chat selhal",
     "requestFailed": "Požadavek chatu selhal ({{status}})",
     "streamingUnsupported": "Tento prohlížeč nepodporuje streamování"

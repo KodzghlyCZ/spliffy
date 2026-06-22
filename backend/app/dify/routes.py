@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from app.auth.routes import get_current_user, require_user
-from app.dify.client import DifyError, stream_chat_message
+from app.dify.client import DifyError, fetch_app_parameters, stream_chat_message
 from app.settings import DifySettings, get_settings
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -43,6 +43,31 @@ def _dify_user_id(request: Request) -> str:
 def chat_config() -> dict[str, bool]:
     settings = get_settings()
     return {"enabled": settings.dify.enabled and bool(settings.dify.api_key)}
+
+
+@router.get("/parameters")
+async def chat_parameters(
+    request: Request,
+    dify: Annotated[DifySettings, Depends(_dify_settings)],
+) -> dict[str, object]:
+    settings = get_settings()
+    if settings.auth.enabled and get_current_user(request) is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user_id = _dify_user_id(request)
+
+    try:
+        data = await fetch_app_parameters(dify, user=user_id)
+    except DifyError as exc:
+        raise HTTPException(status_code=502, detail=exc.detail) from exc
+
+    opening = data.get("opening_statement")
+    suggested = data.get("suggested_questions")
+
+    return {
+        "opening_statement": opening if isinstance(opening, str) else "",
+        "suggested_questions": suggested if isinstance(suggested, list) else [],
+    }
 
 
 @router.post("/messages")

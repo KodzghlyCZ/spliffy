@@ -207,6 +207,36 @@
   background: linear-gradient(to top, var(--bg) 75%, transparent);
 }
 
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.chat-suggestion {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-h);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.chat-suggestion:hover:not(:disabled) {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+}
+
+.chat-suggestion:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chat-composer-shell {
   max-width: 48rem;
   margin: 0 auto;

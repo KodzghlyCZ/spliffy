@@ -51,3 +51,24 @@ async def stream_chat_message(
             f"Cannot reach Dify at {url} ({exc.__class__.__name__}). "
             "From inside Docker, use the Dify service URL (e.g. http://api:5001/v1), not localhost.",
         ) from exc
+
+
+async def fetch_app_parameters(settings: DifySettings, *, user: str) -> dict[str, Any]:
+    url = f"{settings.base_url}/parameters"
+    headers = {"Authorization": f"Bearer {settings.api_key}"}
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+            response = await client.get(url, headers=headers, params={"user": user})
+            if response.status_code != 200:
+                detail = response.text
+                raise DifyError(response.status_code, detail or "Dify request failed")
+            return response.json()
+    except DifyError:
+        raise
+    except httpx.HTTPError as exc:
+        raise DifyError(
+            0,
+            f"Cannot reach Dify at {url} ({exc.__class__.__name__}). "
+            "From inside Docker, use the Dify service URL (e.g. http://api:5001/v1), not localhost.",
+        ) from exc

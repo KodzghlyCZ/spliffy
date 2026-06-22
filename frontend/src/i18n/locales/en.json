@@ -36,6 +36,7 @@
     "placeholder": "Message Spliffy…",
     "send": "Send message",
     "hint": "Enter to send · Shift+Enter for a new line",
+    "suggestions": "Suggested questions",
     "failed": "Chat failed",
     "requestFailed": "Chat request failed ({{status}})",
     "streamingUnsupported": "Streaming is not supported in this browser"

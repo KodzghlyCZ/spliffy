@@ -1,7 +1,7 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
-import { fetchChatConfig, streamChatMessage } from '../lib/chat'
+import { fetchChatConfig, fetchChatParameters, streamChatMessage } from '../lib/chat'
 import './Chat.css'
 
 type Message = {
@@ -22,6 +22,7 @@ export function Chat() {
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [conversationId, setConversationId] = useState('')
   const [sending, setSending] = useState(false)
@@ -30,12 +31,33 @@ export function Chat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const displayName = user?.name ?? user?.email ?? user?.preferred_username ?? null
+  const hasUserMessages = messages.some((message) => message.role === 'user')
 
   useEffect(() => {
     fetchChatConfig()
       .then((config) => setChatEnabled(config.enabled))
       .catch(() => setChatEnabled(false))
   }, [])
+
+  useEffect(() => {
+    if (authLoading || !chatEnabled || (authConfig?.enabled && !user)) {
+      return
+    }
+
+    fetchChatParameters()
+      .then((parameters) => {
+        const opening = parameters.opening_statement.trim()
+        if (opening) {
+          setMessages([{ id: 'opening', role: 'assistant', content: opening }])
+        }
+        setSuggestedQuestions(
+          parameters.suggested_questions.filter((question) => question.trim().length > 0),
+        )
+      })
+      .catch(() => {
+        // Opening message is optional; ignore load failures.
+      })
+  }, [authLoading, authConfig?.enabled, chatEnabled, user])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -49,6 +71,60 @@ export function Chat() {
     textarea.style.height = 'auto'
     textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
   }, [input])
+
+  const sendQuery = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim()
+      if (!trimmed || sending) {
+        return
+      }
+
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: trimmed,
+      }
+      const assistantId = crypto.randomUUID()
+
+      setMessages((current) => [...current, userMessage])
+      setMessages((current) => [...current, { id: assistantId, role: 'assistant', content: '' }])
+      setInput('')
+      setSending(true)
+      setError(null)
+
+      try {
+        await streamChatMessage(
+          { query: trimmed, conversation_id: conversationId },
+          (streamEvent) => {
+            if (streamEvent.event === 'error') {
+              setError(streamEvent.message ?? t('chat.failed'))
+              return
+            }
+
+            if (streamEvent.conversation_id) {
+              setConversationId(streamEvent.conversation_id)
+            }
+
+            if (streamEvent.event === 'message' && streamEvent.answer) {
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, content: message.content + streamEvent.answer }
+                    : message,
+                ),
+              )
+            }
+          },
+        )
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('chat.failed'))
+        setMessages((current) => current.filter((message) => message.id !== assistantId))
+      } finally {
+        setSending(false)
+      }
+    },
+    [conversationId, sending, t],
+  )
 
   if (authLoading || chatEnabled === null) {
     return <div className="chat-panel chat-status">{t('chat.loading')}</div>
@@ -74,54 +150,7 @@ export function Chat() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const query = input.trim()
-    if (!query || sending) {
-      return
-    }
-
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: query,
-    }
-    const assistantId = crypto.randomUUID()
-
-    setMessages((current) => [...current, userMessage])
-    setMessages((current) => [...current, { id: assistantId, role: 'assistant', content: '' }])
-    setInput('')
-    setSending(true)
-    setError(null)
-
-    try {
-      await streamChatMessage(
-        { query, conversation_id: conversationId },
-        (streamEvent) => {
-          if (streamEvent.event === 'error') {
-            setError(streamEvent.message ?? t('chat.failed'))
-            return
-          }
-
-          if (streamEvent.conversation_id) {
-            setConversationId(streamEvent.conversation_id)
-          }
-
-          if (streamEvent.event === 'message' && streamEvent.answer) {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? { ...message, content: message.content + streamEvent.answer }
-                  : message,
-              ),
-            )
-          }
-        },
-      )
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('chat.failed'))
-      setMessages((current) => current.filter((message) => message.id !== assistantId))
-    } finally {
-      setSending(false)
-    }
+    await sendQuery(input)
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -180,6 +209,22 @@ export function Chat() {
 
       <div className="chat-composer-wrap">
         <div className="chat-composer-shell">
+          {!hasUserMessages && suggestedQuestions.length > 0 ? (
+            <div className="chat-suggestions" aria-label={t('chat.suggestions')}>
+              {suggestedQuestions.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  className="chat-suggestion"
+                  disabled={sending}
+                  onClick={() => void sendQuery(question)}
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {error ? <div className="chat-error">{error}</div> : null}
 
           <form className="chat-composer" onSubmit={handleSubmit}>
