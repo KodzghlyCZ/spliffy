@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { fetchChatConfig, streamChatMessage } from '../lib/chat'
 import './Chat.css'
@@ -7,6 +7,13 @@ type Message = {
   id: string
   role: 'user' | 'assistant'
   content: string
+}
+
+function userInitial(userName?: string | null) {
+  if (!userName) {
+    return 'Y'
+  }
+  return userName.trim().charAt(0).toUpperCase() || 'Y'
 }
 
 export function Chat() {
@@ -18,6 +25,9 @@ export function Chat() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const displayName = user?.name ?? user?.email ?? user?.preferred_username ?? null
 
   useEffect(() => {
     fetchChatConfig()
@@ -29,21 +39,33 @@ export function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
 
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      return
+    }
+    textarea.style.height = 'auto'
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
+  }, [input])
+
   if (authLoading || chatEnabled === null) {
-    return <div className="chat-status">Loading chat…</div>
+    return <div className="chat-panel chat-status">Loading chat…</div>
   }
 
   if (!chatEnabled) {
-    return <div className="chat-status">Chat is not configured on the server.</div>
+    return <div className="chat-panel chat-status">Chat is not configured on the server.</div>
   }
 
   if (authConfig?.enabled && !user) {
     return (
-      <div className="chat-status">
-        <p>Sign in to start chatting.</p>
-        <button type="button" onClick={login}>
-          Log in
-        </button>
+      <div className="chat-panel chat-status">
+        <div className="chat-status-card">
+          <h2>Welcome to Spliffy</h2>
+          <p>Sign in to start chatting with your assistant.</p>
+          <button type="button" onClick={login}>
+            Log in
+          </button>
+        </div>
       </div>
     )
   }
@@ -100,39 +122,92 @@ export function Chat() {
     }
   }
 
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+    }
+  }
+
   return (
     <div className="chat">
-      <div className="chat-messages">
-        {messages.length === 0 ? (
-          <p className="chat-empty">Ask something to start the conversation.</p>
-        ) : (
-          messages.map((message) => (
-            <div key={message.id} className={`chat-message chat-message--${message.role}`}>
-              <div className="chat-message-role">{message.role === 'user' ? 'You' : 'Assistant'}</div>
-              <div className="chat-message-content">
-                {message.content || (sending ? '…' : '')}
-              </div>
+      <div className="chat-thread">
+        <div className="chat-messages">
+          {messages.length === 0 ? (
+            <div className="chat-empty">
+              <h2>How can I help?</h2>
+              <p>Ask a question to start the conversation.</p>
             </div>
-          ))
-        )}
-        <div ref={bottomRef} />
+          ) : (
+            messages.map((message) => {
+              const isUser = message.role === 'user'
+              const isStreaming = sending && !isUser && message.content === ''
+
+              return (
+                <article
+                  key={message.id}
+                  className={`chat-row chat-row--${message.role}`}
+                >
+                  <div
+                    className={`chat-avatar chat-avatar--${message.role}`}
+                    aria-hidden="true"
+                  >
+                    {isUser ? userInitial(displayName) : 'S'}
+                  </div>
+                  <div className="chat-bubble-wrap">
+                    <div className="chat-meta">{isUser ? 'You' : 'Spliffy'}</div>
+                    <div className={`chat-bubble chat-bubble--${message.role}`}>
+                      {isStreaming ? (
+                        <span className="chat-typing" aria-label="Assistant is typing">
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                      ) : (
+                        message.content
+                      )}
+                    </div>
+                  </div>
+                </article>
+              )
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
       </div>
 
-      {error ? <div className="chat-error">{error}</div> : null}
+      <div className="chat-composer-wrap">
+        <div className="chat-composer-shell">
+          {error ? <div className="chat-error">{error}</div> : null}
 
-      <form className="chat-form" onSubmit={handleSubmit}>
-        <textarea
-          className="chat-input"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Message…"
-          rows={3}
-          disabled={sending}
-        />
-        <button className="chat-send" type="submit" disabled={sending || !input.trim()}>
-          {sending ? 'Sending…' : 'Send'}
-        </button>
-      </form>
+          <form className="chat-composer" onSubmit={handleSubmit}>
+            <textarea
+              ref={textareaRef}
+              className="chat-input"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Message Spliffy…"
+              rows={1}
+              disabled={sending}
+            />
+            <button
+              className="chat-send"
+              type="submit"
+              disabled={sending || !input.trim()}
+              aria-label="Send message"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  d="M3.4 20.6 21 12 3.4 3.4l2.8 7.2L17 12l-10.8 1.4-2.8 7.2Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </form>
+          <p className="chat-hint">Enter to send · Shift+Enter for a new line</p>
+        </div>
+      </div>
     </div>
   )
 }

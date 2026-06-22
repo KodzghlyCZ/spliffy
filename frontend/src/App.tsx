@@ -1,13 +1,22 @@
 import { AuthBar } from './components/AuthBar'
 import { Chat } from './components/Chat'
+import { ThemeToggle } from './components/ThemeToggle'
 import './App.css'
 
 function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Spliffy</h1>
-        <AuthBar />
+        <div className="app-brand">
+          <span className="app-logo" aria-hidden="true">
+            S
+          </span>
+          <h1>Spliffy</h1>
+        </div>
+        <div className="app-header-actions">
+          <ThemeToggle />
+          <AuthBar />
+        </div>
       </header>
       <main className="app-main">
         <Chat />
