@@ -64,7 +64,8 @@ export function Chat() {
   }, [authLoading, authConfig?.enabled, chatEnabled, user])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    bottomRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' })
   }, [messages, sending])
 
   useEffect(() => {

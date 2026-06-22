@@ -21,10 +21,18 @@
   color: var(--text-h);
   cursor: pointer;
   font-size: 0.8125rem;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .auth-bar button:hover {
   background: var(--bg-muted);
   border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.auth-bar button:active {
+  transform: translateY(0);
 }

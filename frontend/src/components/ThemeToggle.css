@@ -16,15 +16,21 @@
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .theme-toggle__btn:hover {
   color: var(--text-h);
+  transform: translateY(-1px);
 }
 
 .theme-toggle__btn--active {
   background: var(--bg-elevated);
   color: var(--text-h);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: translateY(0);
 }
