@@ -2,6 +2,7 @@ import { apiFetch, apiPath } from './api'
 
 export type ChatConfig = {
   enabled: boolean
+  name: string
 }
 
 export type ChatMessageRequest = {

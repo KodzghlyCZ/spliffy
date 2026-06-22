@@ -40,9 +40,12 @@ def _dify_user_id(request: Request) -> str:
 
 
 @router.get("/config")
-def chat_config() -> dict[str, bool]:
+def chat_config() -> dict[str, object]:
     settings = get_settings()
-    return {"enabled": settings.dify.enabled and bool(settings.dify.api_key)}
+    return {
+        "enabled": settings.dify.enabled and bool(settings.dify.api_key),
+        "name": settings.dify.name,
+    }
 
 
 @router.get("/parameters")

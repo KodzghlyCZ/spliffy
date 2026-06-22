@@ -21,6 +21,7 @@ export function Chat() {
   const { t } = useTranslation()
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
+  const [chatbotName, setChatbotName] = useState('Spliffy')
   const [messages, setMessages] = useState<Message[]>([])
   const [openingStatement, setOpeningStatement] = useState('')
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
@@ -36,7 +37,12 @@ export function Chat() {
 
   useEffect(() => {
     fetchChatConfig()
-      .then((config) => setChatEnabled(config.enabled))
+      .then((config) => {
+        setChatEnabled(config.enabled)
+        if (config.name.trim()) {
+          setChatbotName(config.name.trim())
+        }
+      })
       .catch(() => setChatEnabled(false))
   }, [])
 
@@ -164,8 +170,8 @@ export function Chat() {
         <div className="chat-messages">
           {!hasUserMessages ? (
             <div className="chat-empty">
-              <h2>{openingStatement || t('chat.emptyTitle')}</h2>
-              {!openingStatement ? <p>{t('chat.emptyBody')}</p> : null}
+              <h2>{chatbotName}</h2>
+              <p>{openingStatement || t('chat.emptyBody')}</p>
               {suggestedQuestions.length > 0 ? (
                 <div className="chat-suggestions chat-suggestions--empty" aria-label={t('chat.suggestions')}>
                   {suggestedQuestions.map((question) => (
@@ -199,7 +205,7 @@ export function Chat() {
                     {isUser ? userInitial(displayName, t('chat.you').charAt(0)) : 'S'}
                   </div>
                   <div className="chat-bubble-wrap">
-                    <div className="chat-meta">{isUser ? t('chat.you') : t('chat.assistant')}</div>
+                    <div className="chat-meta">{isUser ? t('chat.you') : chatbotName}</div>
                     <div className={`chat-bubble chat-bubble--${message.role}`}>
                       {isStreaming ? (
                         <span className="chat-typing" aria-label={t('chat.typing')}>
