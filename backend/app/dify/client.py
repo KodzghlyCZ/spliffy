@@ -34,11 +34,20 @@ async def stream_chat_message(
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
-        async with client.stream("POST", url, headers=headers, json=payload) as response:
-            if response.status_code != 200:
-                detail = (await response.aread()).decode("utf-8", errors="replace")
-                raise DifyError(response.status_code, detail or "Dify request failed")
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as response:
+                if response.status_code != 200:
+                    detail = (await response.aread()).decode("utf-8", errors="replace")
+                    raise DifyError(response.status_code, detail or "Dify request failed")
 
-            async for chunk in response.aiter_bytes():
-                yield chunk
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+    except DifyError:
+        raise
+    except httpx.HTTPError as exc:
+        raise DifyError(
+            0,
+            f"Cannot reach Dify at {url} ({exc.__class__.__name__}). "
+            "From inside Docker, use the Dify service URL (e.g. http://api:5001/v1), not localhost.",
+        ) from exc

@@ -82,6 +82,8 @@ Create a **Chat App** in Dify, copy its API key from **API Access**, and set `DI
 
 When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `sub`). Auth must be disabled or the user must be logged in to chat.
 
+**Docker:** Spliffy runs in its own container. `localhost` inside that container is not Dify on the host. Either join the Dify compose network and use `http://api:5001/v1`, or reach Dify via `http://host.docker.internal:<published-port>/v1`.
+
 | Endpoint | Description |
 |----------|-------------|
 | `GET /chat/config` | Whether Dify chat is configured |

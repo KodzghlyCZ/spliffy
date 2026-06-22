@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import Annotated
 
@@ -67,6 +68,7 @@ async def send_message(
             ):
                 yield chunk
         except DifyError as exc:
-            yield f'data: {{"event":"error","message":"Dify error {exc.status_code}"}}\n\n'.encode()
+            payload = json.dumps({"event": "error", "message": exc.detail})
+            yield f"data: {payload}\n\n".encode()
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
