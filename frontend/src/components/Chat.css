@@ -85,11 +85,20 @@
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--text-h);
+  max-width: 32rem;
+  white-space: pre-wrap;
 }
 
 .chat-empty p {
   margin: 0;
   color: var(--text-muted);
+  max-width: 28rem;
+}
+
+.chat-suggestions--empty {
+  justify-content: center;
+  margin-top: 1.5rem;
+  max-width: 36rem;
 }
 
 .chat-row {

@@ -22,6 +22,7 @@ export function Chat() {
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [openingStatement, setOpeningStatement] = useState('')
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [conversationId, setConversationId] = useState('')
@@ -46,10 +47,7 @@ export function Chat() {
 
     fetchChatParameters()
       .then((parameters) => {
-        const opening = parameters.opening_statement.trim()
-        if (opening) {
-          setMessages([{ id: 'opening', role: 'assistant', content: opening }])
-        }
+        setOpeningStatement(parameters.opening_statement.trim())
         setSuggestedQuestions(
           parameters.suggested_questions.filter((question) => question.trim().length > 0),
         )
@@ -164,10 +162,25 @@ export function Chat() {
     <div className="chat">
       <div className="chat-thread">
         <div className="chat-messages">
-          {messages.length === 0 ? (
+          {!hasUserMessages ? (
             <div className="chat-empty">
-              <h2>{t('chat.emptyTitle')}</h2>
-              <p>{t('chat.emptyBody')}</p>
+              <h2>{openingStatement || t('chat.emptyTitle')}</h2>
+              {!openingStatement ? <p>{t('chat.emptyBody')}</p> : null}
+              {suggestedQuestions.length > 0 ? (
+                <div className="chat-suggestions chat-suggestions--empty" aria-label={t('chat.suggestions')}>
+                  {suggestedQuestions.map((question) => (
+                    <button
+                      key={question}
+                      type="button"
+                      className="chat-suggestion"
+                      disabled={sending}
+                      onClick={() => void sendQuery(question)}
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : (
             messages.map((message) => {
@@ -209,22 +222,6 @@ export function Chat() {
 
       <div className="chat-composer-wrap">
         <div className="chat-composer-shell">
-          {!hasUserMessages && suggestedQuestions.length > 0 ? (
-            <div className="chat-suggestions" aria-label={t('chat.suggestions')}>
-              {suggestedQuestions.map((question) => (
-                <button
-                  key={question}
-                  type="button"
-                  className="chat-suggestion"
-                  disabled={sending}
-                  onClick={() => void sendQuery(question)}
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           {error ? <div className="chat-error">{error}</div> : null}
 
           <form className="chat-composer" onSubmit={handleSubmit}>
