@@ -11,12 +11,33 @@ export type ChatMessageRequest = {
   inputs?: Record<string, unknown>
 }
 
+export type DifyWorkflowNodeData = {
+  id?: string
+  node_id?: string
+  node_type?: string
+  title?: string
+  status?: string
+  elapsed_time?: number
+}
+
 export type DifyStreamEvent = {
   event: string
   answer?: string
   conversation_id?: string
   message_id?: string
   message?: string
+  task_id?: string
+  id?: string
+  position?: number
+  thought?: string
+  observation?: string
+  tool?: string
+  tool_input?: string
+  created_at?: number
+  workflow_run_id?: string
+  data?: DifyWorkflowNodeData & {
+    text?: string
+  }
 }
 
 export type ChatParameters = {

@@ -99,4 +99,12 @@ async def send_message(
             payload = json.dumps({"event": "error", "message": exc.detail})
             yield f"data: {payload}\n\n".encode()
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

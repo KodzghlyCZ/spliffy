@@ -39,6 +39,25 @@
     "suggestions": "Suggested questions",
     "failed": "Chat failed",
     "requestFailed": "Chat request failed ({{status}})",
-    "streamingUnsupported": "Streaming is not supported in this browser"
+    "streamingUnsupported": "Streaming is not supported in this browser",
+    "agent": {
+      "thinking": "Thinking…",
+      "thoughtProcess": "Thought process",
+      "stepCount": "{{count}} steps",
+      "reasoning": "Reasoning",
+      "callingTool": "Calling {{tool}}",
+      "toolInput": "Tool input",
+      "toolResult": "Tool result"
+    },
+    "workflow": {
+      "workflow": "Workflow",
+      "runningWorkflow": "Running workflow…",
+      "nodeCount": "{{count}} nodes",
+      "running": "Running",
+      "done": "Done",
+      "failed": "Failed",
+      "stopped": "Stopped",
+      "elapsed": "{{seconds}}s"
+    }
   }
 }

@@ -39,6 +39,25 @@
     "suggestions": "Navrhované otázky",
     "failed": "Chat selhal",
     "requestFailed": "Požadavek chatu selhal ({{status}})",
-    "streamingUnsupported": "Tento prohlížeč nepodporuje streamování"
+    "streamingUnsupported": "Tento prohlížeč nepodporuje streamování",
+    "agent": {
+      "thinking": "Přemýšlím…",
+      "thoughtProcess": "Proces uvažování",
+      "stepCount": "{{count}} kroků",
+      "reasoning": "Uvažování",
+      "callingTool": "Volám {{tool}}",
+      "toolInput": "Vstup nástroje",
+      "toolResult": "Výsledek nástroje"
+    },
+    "workflow": {
+      "workflow": "Workflow",
+      "runningWorkflow": "Spouštím workflow…",
+      "nodeCount": "{{count}} uzlů",
+      "running": "Běží",
+      "done": "Hotovo",
+      "failed": "Selhalo",
+      "stopped": "Zastaveno",
+      "elapsed": "{{seconds}} s"
+    }
   }
 }

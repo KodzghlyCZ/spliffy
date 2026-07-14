@@ -2,13 +2,15 @@ import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, use
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { fetchChatConfig, fetchChatParameters, streamChatMessage } from '../lib/chat'
+import {
+  applyStreamEvent,
+  createAssistantMessage,
+  hasAgentActivity,
+  type Message,
+} from '../lib/streamState'
+import { AgentSteps } from './AgentSteps'
+import { WorkflowProgress } from './WorkflowProgress'
 import './Chat.css'
-
-type Message = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-}
 
 function userInitial(userName: string | null | undefined, fallback: string) {
   if (!userName) {
@@ -88,11 +90,13 @@ export function Chat() {
         id: crypto.randomUUID(),
         role: 'user',
         content: trimmed,
+        steps: [],
+        workflowNodes: [],
+        streaming: false,
       }
       const assistantId = crypto.randomUUID()
 
-      setMessages((current) => [...current, userMessage])
-      setMessages((current) => [...current, { id: assistantId, role: 'assistant', content: '' }])
+      setMessages((current) => [...current, userMessage, createAssistantMessage(assistantId)])
       setInput('')
       setSending(true)
       setError(null)
@@ -110,16 +114,22 @@ export function Chat() {
               setConversationId(streamEvent.conversation_id)
             }
 
-            if (streamEvent.event === 'message' && streamEvent.answer) {
-              setMessages((current) =>
-                current.map((message) =>
-                  message.id === assistantId
-                    ? { ...message, content: message.content + streamEvent.answer }
-                    : message,
-                ),
-              )
-            }
+            setMessages((current) =>
+              current.map((message) => {
+                if (message.id !== assistantId) {
+                  return message
+                }
+
+                return applyStreamEvent(message, streamEvent)
+              }),
+            )
           },
+        )
+
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId ? { ...message, streaming: false } : message,
+          ),
         )
       } catch (err) {
         setError(err instanceof Error ? err.message : t('chat.failed'))
@@ -192,7 +202,9 @@ export function Chat() {
           ) : (
             messages.map((message) => {
               const isUser = message.role === 'user'
-              const isStreaming = sending && !isUser && message.content === ''
+              const isStreaming = sending && message.streaming
+              const showTyping =
+                isStreaming && message.content === '' && !hasAgentActivity(message)
 
               return (
                 <article
@@ -207,8 +219,14 @@ export function Chat() {
                   </div>
                   <div className="chat-bubble-wrap">
                     <div className="chat-meta">{isUser ? t('chat.you') : chatbotName}</div>
+                    {!isUser ? (
+                      <>
+                        <WorkflowProgress nodes={message.workflowNodes} streaming={isStreaming} />
+                        <AgentSteps steps={message.steps} streaming={isStreaming} />
+                      </>
+                    ) : null}
                     <div className={`chat-bubble chat-bubble--${message.role}`}>
-                      {isStreaming ? (
+                      {showTyping ? (
                         <span className="chat-typing" aria-label={t('chat.typing')}>
                           <span />
                           <span />

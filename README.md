@@ -93,6 +93,8 @@ When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `su
 | `GET /chat/parameters` | Opening message and suggested questions from the Dify app |
 | `POST /chat/messages` | Send a message (SSE stream) |
 
+For **Agent** and **Advanced Chat (Chatflow)** apps, Spliffy renders agent thoughts, tool calls, and workflow node progress in realtime as Dify streams SSE events. See [docs/runbooks/agent-realtime-streaming.md](docs/runbooks/agent-realtime-streaming.md) for architecture, event reference, validation, and troubleshooting.
+
 ## Docker
 
 The image is a multi-stage build: Node builds the frontend, Python slim runs the API and serves static files from a single container (~180 MB).

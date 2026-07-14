@@ -1,0 +1,115 @@
+.agent-steps {
+  margin-bottom: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--assistant-bubble) 88%, var(--bg-muted));
+  overflow: hidden;
+}
+
+.agent-steps__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-steps__toggle--static {
+  cursor: default;
+}
+
+.agent-steps__toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.agent-steps__toggle-meta {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.agent-steps__chevron {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.agent-steps__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.85rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.agent-step {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.agent-step--running {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.agent-step__header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.agent-step__status {
+  color: var(--accent);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.agent-step--done .agent-step__status {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
+}
+
+.agent-step__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.agent-step__thought {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.agent-step__details {
+  margin-top: 0.45rem;
+}
+
+.agent-step__details summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.agent-step__details pre {
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.5rem;
+  background: var(--bg-muted);
+  overflow-x: auto;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

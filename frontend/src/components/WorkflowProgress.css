@@ -1,0 +1,85 @@
+.workflow-progress {
+  margin-bottom: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--assistant-bubble) 88%, var(--bg-muted));
+  padding: 0.65rem 0.85rem;
+}
+
+.workflow-progress__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.workflow-progress__count {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.workflow-progress__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.workflow-node {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.workflow-node--running {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.workflow-node--failed {
+  border-color: color-mix(in srgb, var(--error-text) 35%, var(--border));
+}
+
+.workflow-node__indicator {
+  margin-top: 0.15rem;
+  color: var(--accent);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.workflow-node--failed .workflow-node__indicator {
+  color: var(--error-text);
+}
+
+.workflow-node--succeeded .workflow-node__indicator,
+.workflow-node--stopped .workflow-node__indicator {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
+}
+
+.workflow-node__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.workflow-node__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.workflow-node__meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
