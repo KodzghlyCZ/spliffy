@@ -46,6 +46,7 @@ def chat_config() -> dict[str, object]:
         "enabled": settings.dify.enabled and bool(settings.dify.api_key),
         "name": settings.dify.name,
         "markdown": settings.dify.markdown,
+        "show_sources": settings.dify.show_sources,
     }
 
 
@@ -67,10 +68,15 @@ async def chat_parameters(
 
     opening = data.get("opening_statement")
     suggested = data.get("suggested_questions")
+    retriever = data.get("retriever_resource")
+    citations_enabled = False
+    if isinstance(retriever, dict):
+        citations_enabled = bool(retriever.get("enabled"))
 
     return {
         "opening_statement": opening if isinstance(opening, str) else "",
         "suggested_questions": suggested if isinstance(suggested, list) else [],
+        "citations_enabled": citations_enabled,
     }
 
 

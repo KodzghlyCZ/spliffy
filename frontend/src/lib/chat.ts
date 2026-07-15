@@ -4,6 +4,7 @@ export type ChatConfig = {
   enabled: boolean
   name: string
   markdown?: boolean
+  show_sources?: boolean
 }
 
 export function parseConfigFlag(value: unknown): boolean {
@@ -44,6 +45,19 @@ export type DifyAgentLogData = {
   node_id?: string
 }
 
+export type DifyRetrieverResource = {
+  position?: number
+  dataset_id?: string
+  dataset_name?: string
+  document_id?: string
+  document_name?: string
+  data_source_type?: string
+  segment_id?: string
+  score?: number
+  content?: string
+  doc_metadata?: Record<string, unknown>
+}
+
 export type DifyStreamEvent = {
   event: string
   answer?: string
@@ -59,6 +73,10 @@ export type DifyStreamEvent = {
   tool_input?: string
   created_at?: number
   workflow_run_id?: string
+  metadata?: {
+    retriever_resources?: DifyRetrieverResource[]
+    usage?: Record<string, unknown>
+  }
   data?: (DifyWorkflowNodeData & DifyAgentLogData) & {
     text?: string
     reasoning?: string
@@ -70,6 +88,7 @@ export type DifyStreamEvent = {
 export type ChatParameters = {
   opening_statement: string
   suggested_questions: string[]
+  citations_enabled: boolean
 }
 
 export function fetchChatConfig() {

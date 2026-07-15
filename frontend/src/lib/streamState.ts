@@ -1,4 +1,4 @@
-import type { DifyStreamEvent } from './chat'
+import type { DifyRetrieverResource, DifyStreamEvent } from './chat'
 
 export type ThinkingItemKind = 'thought' | 'tool' | 'observation' | 'log'
 
@@ -30,6 +30,15 @@ export type WorkflowNode = {
   elapsedTime?: number
 }
 
+export type CitationSource = {
+  position: number
+  title: string
+  url?: string
+  datasetName?: string
+  score?: number
+  snippet?: string
+}
+
 export type Message = {
   id: string
   role: 'user' | 'assistant'
@@ -38,6 +47,7 @@ export type Message = {
   items: ThinkingItem[]
   steps: AgentStep[]
   workflowNodes: WorkflowNode[]
+  citations: CitationSource[]
   streaming: boolean
 }
 
@@ -52,6 +62,7 @@ export function createAssistantMessage(id: string): Message {
     items: [],
     steps: [],
     workflowNodes: [],
+    citations: [],
     streaming: true,
   }
 }
@@ -175,6 +186,55 @@ function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
 
 function pickString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function pickCitationUrl(meta: Record<string, unknown> | undefined): string | undefined {
+  if (!meta) {
+    return undefined
+  }
+  for (const key of ['url', 'source_url', 'file_url', 'link']) {
+    const value = pickString(meta[key])
+    if (value?.startsWith('http')) {
+      return value
+    }
+  }
+  return undefined
+}
+
+export function parseRetrieverResources(
+  resources: DifyRetrieverResource[] | undefined,
+): CitationSource[] {
+  if (!resources?.length) {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const citations: CitationSource[] = []
+
+  for (const resource of resources) {
+    const position = typeof resource.position === 'number' ? resource.position : citations.length + 1
+    const title =
+      pickString(resource.document_name) ??
+      pickString(resource.dataset_name) ??
+      `Source ${position}`
+    const url = pickCitationUrl(resource.doc_metadata)
+    const dedupeKey = `${url ?? ''}|${title}|${resource.segment_id ?? ''}`
+    if (seen.has(dedupeKey)) {
+      continue
+    }
+    seen.add(dedupeKey)
+
+    citations.push({
+      position,
+      title,
+      url,
+      datasetName: pickString(resource.dataset_name),
+      score: typeof resource.score === 'number' ? resource.score : undefined,
+      snippet: pickString(resource.content),
+    })
+  }
+
+  return citations.sort((a, b) => a.position - b.position)
 }
 
 function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): AgentStep[] {
@@ -360,9 +420,15 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
   }
 
   if (event.event === 'message_end' || event.event === 'workflow_finished') {
+    const citations =
+      event.event === 'message_end'
+        ? parseRetrieverResources(event.metadata?.retriever_resources)
+        : next.citations
+
     next = {
       ...next,
       streaming: false,
+      citations: citations.length > 0 ? citations : next.citations,
       steps: next.steps.map((step) =>
         step.status === 'running' ? { ...step, status: 'done' as const } : step,
       ),

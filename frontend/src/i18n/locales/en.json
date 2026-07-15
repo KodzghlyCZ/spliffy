@@ -67,5 +67,9 @@
       "stopped": "Stopped",
       "elapsed": "{{seconds}}s"
     }
+  },
+  "citations": {
+    "label": "Sources",
+    "score": "Relevance {{score}}"
   }
 }

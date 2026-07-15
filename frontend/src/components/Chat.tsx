@@ -9,6 +9,7 @@ import {
   hasThinkingActivity,
   type Message,
 } from '../lib/streamState'
+import { CitationSources } from './CitationSources'
 import { ThinkingPanel } from './ThinkingPanel'
 import { MessageContent } from './MessageContent'
 import { WorkflowProgress } from './WorkflowProgress'
@@ -27,6 +28,8 @@ export function Chat() {
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
   const [chatbotName, setChatbotName] = useState('Spliffy')
   const [markdownEnabled, setMarkdownEnabled] = useState(false)
+  const [showSources, setShowSources] = useState(true)
+  const [citationsEnabled, setCitationsEnabled] = useState(true)
   const [messages, setMessages] = useState<Message[]>([])
   const [openingStatement, setOpeningStatement] = useState('')
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
@@ -48,6 +51,7 @@ export function Chat() {
           setChatbotName(config.name.trim())
         }
         setMarkdownEnabled(parseConfigFlag(config.markdown))
+        setShowSources(config.show_sources !== false)
       })
       .catch(() => setChatEnabled(false))
   }, [])
@@ -63,6 +67,7 @@ export function Chat() {
         setSuggestedQuestions(
           parameters.suggested_questions.filter((question) => question.trim().length > 0),
         )
+        setCitationsEnabled(parameters.citations_enabled)
       })
       .catch(() => {
         // Opening message is optional; ignore load failures.
@@ -98,6 +103,7 @@ export function Chat() {
         items: [],
         steps: [],
         workflowNodes: [],
+        citations: [],
         streaming: false,
       }
       const assistantId = crypto.randomUUID()
@@ -258,6 +264,9 @@ export function Chat() {
                         />
                       )}
                     </div>
+                    {!isUser && showSources && citationsEnabled ? (
+                      <CitationSources citations={message.citations} />
+                    ) : null}
                   </div>
                 </article>
               )

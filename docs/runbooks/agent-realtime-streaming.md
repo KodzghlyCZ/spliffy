@@ -252,7 +252,7 @@ Priority extensions not yet implemented:
 
 | Feature | Dify source | Suggested approach |
 |---------|-------------|-------------------|
-| Citations / RAG sources | `message_end.metadata.retriever_resources` | New `RetrieverCitations` component |
+| Citations / RAG sources | `message_end.metadata.retriever_resources` | `CitationSources` component — see [`rag-citations.md`](./rag-citations.md) |
 | File attachments | `message_file` | Render download links in assistant bubble |
 | Paused workflows (human-in-the-loop) | `workflow_paused` | New endpoint + resume UI |
 | Normalized event schema | Backend transform | Optional layer in `routes.py` if Dify schema drifts |

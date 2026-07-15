@@ -20,6 +20,7 @@ dify:
   enabled: false
   name: Spliffy
   markdown: false
+  show_sources: true
   # Self-hosted example: http://127.0.0.1/v1 or http://api:5001/v1 from another container
   base_url: http://127.0.0.1/v1
   api_key: ${DIFY_API_KEY}

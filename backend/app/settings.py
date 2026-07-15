@@ -46,6 +46,7 @@ class DifySettings:
     api_key: str
     name: str
     markdown: bool
+    show_sources: bool
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,7 @@ def _read_settings() -> Settings:
     dify_api_key = str(get("dify.api_key", default=""))
     dify_name = str(get("dify.name", default="Spliffy"))
     dify_markdown = _as_bool(get("dify.markdown", default=False))
+    dify_show_sources = _as_bool(get("dify.show_sources", default=True))
     if _as_bool(os.environ.get("SPLIFFY_MARKDOWN")):
         dify_markdown = True
 
@@ -110,6 +112,7 @@ def _read_settings() -> Settings:
             api_key=dify_api_key,
             name=dify_name,
             markdown=dify_markdown,
+            show_sources=dify_show_sources,
         ),
     )
 
