@@ -1,11 +1,26 @@
 from dataclasses import dataclass
-from functools import lru_cache
 import os
 from pathlib import Path
 
 from yayaya import get, init
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
+
+
+def _as_bool(value: object, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+    return bool(value)
 
 
 @dataclass(frozen=True)
@@ -57,7 +72,7 @@ def _read_settings() -> Settings:
     cors_origins = get("server.cors_origins", default=["http://localhost:5173"])
     session_secret = get("server.session_secret", default="change-me-in-production")
 
-    auth_enabled = bool(get("auth.enabled", default=False))
+    auth_enabled = _as_bool(get("auth.enabled", default=False))
     post_login_redirect = get(
         "auth.post_login_redirect",
         default="http://localhost:5173",
@@ -73,11 +88,13 @@ def _read_settings() -> Settings:
             scopes=tuple(get("auth.oidc.scopes", default=["openid", "profile", "email"])),
         )
 
-    dify_enabled = bool(get("dify.enabled", default=False))
+    dify_enabled = _as_bool(get("dify.enabled", default=False))
     dify_base_url = str(get("dify.base_url", default="http://127.0.0.1/v1")).rstrip("/")
     dify_api_key = str(get("dify.api_key", default=""))
     dify_name = str(get("dify.name", default="Spliffy"))
-    dify_markdown = bool(get("dify.markdown", default=False))
+    dify_markdown = _as_bool(get("dify.markdown", default=False))
+    if _as_bool(os.environ.get("SPLIFFY_MARKDOWN")):
+        dify_markdown = True
 
     return Settings(
         cors_origins=tuple(cors_origins),
@@ -97,7 +114,6 @@ def _read_settings() -> Settings:
     )
 
 
-@lru_cache
 def get_settings() -> Settings:
     _load_config()
     return _read_settings()

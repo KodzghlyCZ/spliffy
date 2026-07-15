@@ -139,7 +139,7 @@ dify:
   api_key: ${DIFY_API_KEY}
 ```
 
-Set `dify.markdown: true` to render assistant responses (and the opening statement) as Markdown. Disabled by default.
+Set `dify.markdown: true` to render assistant responses (and the opening statement) as Markdown. Disabled by default. Verify with `GET /chat/config` — the response must include `"markdown": true`. Settings are re-read on each request (no restart needed after editing the mounted config).
 
 The Dify app type determines which events you will see:
 

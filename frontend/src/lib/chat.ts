@@ -3,7 +3,17 @@ import { apiFetch, apiPath } from './api'
 export type ChatConfig = {
   enabled: boolean
   name: string
-  markdown: boolean
+  markdown?: boolean
+}
+
+export function parseConfigFlag(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase())
+  }
+  return false
 }
 
 export type ChatMessageRequest = {

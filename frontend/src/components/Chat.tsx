@@ -1,7 +1,7 @@
 import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
-import { fetchChatConfig, fetchChatParameters, streamChatMessage } from '../lib/chat'
+import { fetchChatConfig, fetchChatParameters, parseConfigFlag, streamChatMessage } from '../lib/chat'
 import {
   applyStreamEvent,
   createAssistantMessage,
@@ -47,7 +47,7 @@ export function Chat() {
         if (config.name.trim()) {
           setChatbotName(config.name.trim())
         }
-        setMarkdownEnabled(config.markdown ?? false)
+        setMarkdownEnabled(parseConfigFlag(config.markdown))
       })
       .catch(() => setChatEnabled(false))
   }, [])
@@ -240,7 +240,11 @@ export function Chat() {
                         />
                       </>
                     ) : null}
-                    <div className={`chat-bubble chat-bubble--${message.role}`}>
+                    <div
+                      className={`chat-bubble chat-bubble--${message.role}${
+                        !isUser && markdownEnabled ? ' chat-bubble--markdown' : ''
+                      }`}
+                    >
                       {showTyping ? (
                         <span className="chat-typing" aria-label={t('chat.typing')}>
                           <span />

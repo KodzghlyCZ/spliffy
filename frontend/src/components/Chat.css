@@ -280,6 +280,10 @@
   border-bottom-left-radius: 0.35rem;
 }
 
+.chat-bubble--markdown {
+  white-space: normal;
+}
+
 .chat-typing {
   display: inline-flex;
   align-items: center;

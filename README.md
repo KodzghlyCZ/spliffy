@@ -82,6 +82,8 @@ dify:
   api_key: ${DIFY_API_KEY}
 ```
 
+After changing `markdown`, confirm `GET /chat/config` returns `"markdown": true`. You can also set `SPLIFFY_MARKDOWN=true` in the container environment as an override.
+
 Create a **Chat App** in Dify, copy its API key from **API Access**, and set `DIFY_API_KEY` in the runtime `.env`. The backend streams responses from `POST /v1/chat-messages` to the browser via `POST /chat/messages`.
 
 When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `sub`). Auth must be disabled or the user must be logged in to chat.
