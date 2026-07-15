@@ -40,6 +40,13 @@
     "failed": "Chat selhal",
     "requestFailed": "Požadavek chatu selhal ({{status}})",
     "streamingUnsupported": "Tento prohlížeč nepodporuje streamování",
+    "thinking": {
+      "active": "Přemýšlím",
+      "done": "Úvaha",
+      "stepCount": "{{count}} kroků",
+      "usedTool": "Použito {{tool}}",
+      "details": "Detaily"
+    },
     "agent": {
       "thinking": "Přemýšlím…",
       "thoughtProcess": "Proces uvažování",
@@ -52,6 +59,7 @@
     "workflow": {
       "workflow": "Workflow",
       "runningWorkflow": "Spouštím workflow…",
+      "runningNode": "Spouštím {{node}}…",
       "nodeCount": "{{count}} uzlů",
       "running": "Běží",
       "done": "Hotovo",

@@ -77,6 +77,7 @@ Spliffy proxies the Dify **Chat App** API so the API key stays on the server. En
 dify:
   enabled: true
   name: My Assistant          # shown in the welcome screen and message labels
+  markdown: false             # set true to render assistant replies as Markdown
   base_url: https://dify.example.com/v1   # self-hosted: include /v1
   api_key: ${DIFY_API_KEY}
 ```
@@ -89,7 +90,7 @@ When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `su
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /chat/config` | Whether Dify chat is configured and the chatbot display name |
+| `GET /chat/config` | Whether Dify chat is configured, the chatbot display name, and Markdown rendering |
 | `GET /chat/parameters` | Opening message and suggested questions from the Dify app |
 | `POST /chat/messages` | Send a message (SSE stream) |
 

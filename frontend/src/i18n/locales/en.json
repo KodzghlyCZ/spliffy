@@ -40,6 +40,13 @@
     "failed": "Chat failed",
     "requestFailed": "Chat request failed ({{status}})",
     "streamingUnsupported": "Streaming is not supported in this browser",
+    "thinking": {
+      "active": "Thinking",
+      "done": "Thought",
+      "stepCount": "{{count}} steps",
+      "usedTool": "Used {{tool}}",
+      "details": "Details"
+    },
     "agent": {
       "thinking": "Thinking…",
       "thoughtProcess": "Thought process",
@@ -52,6 +59,7 @@
     "workflow": {
       "workflow": "Workflow",
       "runningWorkflow": "Running workflow…",
+      "runningNode": "Running {{node}}…",
       "nodeCount": "{{count}} nodes",
       "running": "Running",
       "done": "Done",

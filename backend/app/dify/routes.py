@@ -45,6 +45,7 @@ def chat_config() -> dict[str, object]:
     return {
         "enabled": settings.dify.enabled and bool(settings.dify.api_key),
         "name": settings.dify.name,
+        "markdown": settings.dify.markdown,
     }
 
 

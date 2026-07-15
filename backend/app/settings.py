@@ -30,6 +30,7 @@ class DifySettings:
     base_url: str
     api_key: str
     name: str
+    markdown: bool
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,7 @@ def _read_settings() -> Settings:
     dify_base_url = str(get("dify.base_url", default="http://127.0.0.1/v1")).rstrip("/")
     dify_api_key = str(get("dify.api_key", default=""))
     dify_name = str(get("dify.name", default="Spliffy"))
+    dify_markdown = bool(get("dify.markdown", default=False))
 
     return Settings(
         cors_origins=tuple(cors_origins),
@@ -90,6 +92,7 @@ def _read_settings() -> Settings:
             base_url=dify_base_url,
             api_key=dify_api_key,
             name=dify_name,
+            markdown=dify_markdown,
         ),
     )
 

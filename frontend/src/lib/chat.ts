@@ -3,6 +3,7 @@ import { apiFetch, apiPath } from './api'
 export type ChatConfig = {
   enabled: boolean
   name: string
+  markdown: boolean
 }
 
 export type ChatMessageRequest = {
@@ -18,6 +19,19 @@ export type DifyWorkflowNodeData = {
   title?: string
   status?: string
   elapsed_time?: number
+  outputs?: Record<string, unknown>
+}
+
+export type DifyAgentLogData = {
+  node_execution_id?: string
+  id?: string
+  label?: string
+  parent_id?: string | null
+  error?: string | null
+  status?: string
+  data?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+  node_id?: string
 }
 
 export type DifyStreamEvent = {
@@ -35,8 +49,11 @@ export type DifyStreamEvent = {
   tool_input?: string
   created_at?: number
   workflow_run_id?: string
-  data?: DifyWorkflowNodeData & {
+  data?: (DifyWorkflowNodeData & DifyAgentLogData) & {
     text?: string
+    reasoning?: string
+    message_id?: string
+    is_final?: boolean
   }
 }
 

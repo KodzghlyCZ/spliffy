@@ -1,32 +1,52 @@
 .workflow-progress {
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.55rem;
   border: 1px solid var(--border);
-  border-radius: 0.85rem;
-  background: color-mix(in srgb, var(--assistant-bubble) 88%, var(--bg-muted));
-  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--assistant-bubble) 92%, var(--bg-muted));
+  overflow: hidden;
+}
+
+.workflow-progress--compact {
+  border-style: dashed;
+  background: transparent;
 }
 
 .workflow-progress__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.8125rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-h);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-progress__header:disabled {
+  cursor: default;
 }
 
 .workflow-progress__count {
-  font-size: 0.75rem;
+  margin-left: auto;
+  font-size: 0.7rem;
   font-weight: 500;
   color: var(--text-muted);
+}
+
+.workflow-progress__chevron {
+  color: var(--text-muted);
+  font-size: 0.7rem;
 }
 
 .workflow-progress__list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0.75rem 0.65rem;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;

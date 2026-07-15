@@ -6,9 +6,11 @@ import {
   applyStreamEvent,
   createAssistantMessage,
   hasAgentActivity,
+  hasThinkingActivity,
   type Message,
 } from '../lib/streamState'
-import { AgentSteps } from './AgentSteps'
+import { ThinkingPanel } from './ThinkingPanel'
+import { MessageContent } from './MessageContent'
 import { WorkflowProgress } from './WorkflowProgress'
 import './Chat.css'
 
@@ -24,6 +26,7 @@ export function Chat() {
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
   const [chatbotName, setChatbotName] = useState('Spliffy')
+  const [markdownEnabled, setMarkdownEnabled] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [openingStatement, setOpeningStatement] = useState('')
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
@@ -44,6 +47,7 @@ export function Chat() {
         if (config.name.trim()) {
           setChatbotName(config.name.trim())
         }
+        setMarkdownEnabled(config.markdown ?? false)
       })
       .catch(() => setChatEnabled(false))
   }, [])
@@ -90,6 +94,8 @@ export function Chat() {
         id: crypto.randomUUID(),
         role: 'user',
         content: trimmed,
+        reasoning: '',
+        items: [],
         steps: [],
         workflowNodes: [],
         streaming: false,
@@ -182,7 +188,12 @@ export function Chat() {
           {!hasUserMessages ? (
             <div className="chat-empty">
               <h2>{chatbotName}</h2>
-              <p>{openingStatement || t('chat.emptyBody')}</p>
+              <div className="chat-empty__intro">
+                <MessageContent
+                  content={openingStatement || t('chat.emptyBody')}
+                  markdown={markdownEnabled && Boolean(openingStatement)}
+                />
+              </div>
               {suggestedQuestions.length > 0 ? (
                 <div className="chat-suggestions chat-suggestions--empty" aria-label={t('chat.suggestions')}>
                   {suggestedQuestions.map((question) => (
@@ -221,8 +232,12 @@ export function Chat() {
                     <div className="chat-meta">{isUser ? t('chat.you') : chatbotName}</div>
                     {!isUser ? (
                       <>
-                        <WorkflowProgress nodes={message.workflowNodes} streaming={isStreaming} />
-                        <AgentSteps steps={message.steps} streaming={isStreaming} />
+                        <ThinkingPanel message={message} streaming={isStreaming} />
+                        <WorkflowProgress
+                          nodes={message.workflowNodes}
+                          streaming={isStreaming}
+                          compact={hasThinkingActivity(message)}
+                        />
                       </>
                     ) : null}
                     <div className={`chat-bubble chat-bubble--${message.role}`}>
@@ -233,7 +248,10 @@ export function Chat() {
                           <span />
                         </span>
                       ) : (
-                        message.content
+                        <MessageContent
+                          content={message.content}
+                          markdown={!isUser && markdownEnabled}
+                        />
                       )}
                     </div>
                   </div>

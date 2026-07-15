@@ -1,5 +1,16 @@
 import type { DifyStreamEvent } from './chat'
 
+export type ThinkingItemKind = 'thought' | 'tool' | 'observation' | 'log'
+
+export type ThinkingItem = {
+  id: string
+  kind: ThinkingItemKind
+  label?: string
+  text: string
+  detail?: string
+  status: 'running' | 'done'
+}
+
 export type AgentStep = {
   id: string
   position: number
@@ -23,6 +34,8 @@ export type Message = {
   id: string
   role: 'user' | 'assistant'
   content: string
+  reasoning: string
+  items: ThinkingItem[]
   steps: AgentStep[]
   workflowNodes: WorkflowNode[]
   streaming: boolean
@@ -35,6 +48,8 @@ export function createAssistantMessage(id: string): Message {
     id,
     role: 'assistant',
     content: '',
+    reasoning: '',
+    items: [],
     steps: [],
     workflowNodes: [],
     streaming: true,
@@ -56,6 +71,110 @@ export function isAnswerEvent(event: DifyStreamEvent): boolean {
   }
 
   return event.event === 'text_chunk' && Boolean(getAnswerChunk(event))
+}
+
+function upsertThinkingItem(items: ThinkingItem[], item: ThinkingItem): ThinkingItem[] {
+  const existingIndex = items.findIndex((entry) => entry.id === item.id)
+  if (existingIndex >= 0) {
+    const next = [...items]
+    next[existingIndex] = { ...next[existingIndex], ...item }
+    return next
+  }
+
+  return [...items, item]
+}
+
+function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
+  const log = event.data
+  if (!log?.id) {
+    return null
+  }
+
+  const metadata = log.metadata ?? {}
+  const payload = log.data ?? {}
+  const label = log.label ?? 'Step'
+  const labelLower = label.toLowerCase()
+
+  const thought =
+    pickString(metadata.thought) ??
+    pickString(payload.thought) ??
+    pickString(payload.text)
+  const action =
+    pickString(metadata.action) ??
+    pickString(payload.action) ??
+    pickString(payload.tool_name)
+  const observation =
+    pickString(metadata.observation) ??
+    pickString(payload.observation) ??
+    pickString(payload.output)
+
+  if (labelLower.includes('round')) {
+    const parts = [thought, action].filter(Boolean)
+    if (parts.length === 0) {
+      return null
+    }
+
+    return {
+      id: log.id,
+      kind: action ? 'tool' : 'thought',
+      label,
+      text: action ? action : (thought ?? label),
+      detail: thought && action ? thought : observation ?? undefined,
+      status: log.status === 'running' ? 'running' : 'done',
+    }
+  }
+
+  if (thought) {
+    return {
+      id: log.id,
+      kind: 'thought',
+      label,
+      text: thought,
+      status: log.status === 'running' ? 'running' : 'done',
+    }
+  }
+
+  if (action) {
+    return {
+      id: log.id,
+      kind: 'tool',
+      label,
+      text: action,
+      detail: observation ?? undefined,
+      status: log.status === 'running' ? 'running' : 'done',
+    }
+  }
+
+  if (observation) {
+    return {
+      id: log.id,
+      kind: 'observation',
+      label,
+      text: observation,
+      status: log.status === 'running' ? 'running' : 'done',
+    }
+  }
+
+  if (labelLower.includes('thought') || labelLower.includes('thinking')) {
+    const fallback = pickString(payload.message) ?? pickString(payload.content)
+    if (!fallback) {
+      return null
+    }
+
+    return {
+      id: log.id,
+      kind: 'thought',
+      label,
+      text: fallback,
+      status: log.status === 'running' ? 'running' : 'done',
+    }
+  }
+
+  return null
+}
+
+function pickString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
 function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): AgentStep[] {
@@ -81,6 +200,44 @@ function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): AgentStep[
   }
 
   return [...steps, nextStep].sort((a, b) => a.position - b.position)
+}
+
+function syncAgentStepItems(steps: AgentStep[], items: ThinkingItem[]): ThinkingItem[] {
+  let nextItems = items
+
+  for (const step of steps) {
+    if (step.thought) {
+      nextItems = upsertThinkingItem(nextItems, {
+        id: `${step.id}-thought`,
+        kind: 'thought',
+        text: step.thought,
+        status: step.status,
+      })
+    }
+
+    if (step.tool) {
+      nextItems = upsertThinkingItem(nextItems, {
+        id: `${step.id}-tool`,
+        kind: 'tool',
+        label: step.tool,
+        text: step.tool,
+        detail: step.toolInput,
+        status: step.observation ? 'done' : step.status,
+      })
+    }
+
+    if (step.observation) {
+      nextItems = upsertThinkingItem(nextItems, {
+        id: `${step.id}-observation`,
+        kind: 'observation',
+        label: step.tool,
+        text: step.observation,
+        status: 'done',
+      })
+    }
+  }
+
+  return nextItems
 }
 
 function upsertWorkflowNode(
@@ -113,6 +270,22 @@ function upsertWorkflowNode(
   return [...nodes, nextNode]
 }
 
+function appendReasoning(current: string, chunk: string): string {
+  if (!chunk) {
+    return current
+  }
+
+  if (!current) {
+    return chunk
+  }
+
+  if (chunk.startsWith(current) || current.endsWith(chunk)) {
+    return chunk.startsWith(current) ? chunk : current
+  }
+
+  return current + chunk
+}
+
 export function applyStreamEvent(message: Message, event: DifyStreamEvent): Message {
   let next = message
 
@@ -123,10 +296,32 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
     }
   }
 
+  if (event.event === 'reasoning_chunk') {
+    const reasoning = event.data?.reasoning
+    if (typeof reasoning === 'string') {
+      next = {
+        ...next,
+        reasoning: appendReasoning(next.reasoning, reasoning),
+      }
+    }
+  }
+
   if (event.event === 'agent_thought') {
+    const steps = upsertAgentStep(next.steps, event)
     next = {
       ...next,
-      steps: upsertAgentStep(next.steps, event),
+      steps,
+      items: syncAgentStepItems(steps, next.items),
+    }
+  }
+
+  if (event.event === 'agent_log') {
+    const item = parseAgentLog(event)
+    if (item) {
+      next = {
+        ...next,
+        items: upsertThinkingItem(next.items, item),
+      }
     }
   }
 
@@ -142,9 +337,25 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
     const status: WorkflowNode['status'] =
       nodeStatus === 'failed' || nodeStatus === 'stopped' ? nodeStatus : 'succeeded'
 
+    const outputs = event.data?.outputs
+    const reasoningContent =
+      outputs && typeof outputs === 'object'
+        ? pickString((outputs as Record<string, unknown>).reasoning_content)
+        : undefined
+
+    let reasoning = next.reasoning
+    if (reasoningContent) {
+      if (!reasoning) {
+        reasoning = reasoningContent
+      } else if (!reasoning.includes(reasoningContent)) {
+        reasoning = appendReasoning(reasoning, reasoningContent)
+      }
+    }
+
     next = {
       ...next,
       workflowNodes: upsertWorkflowNode(next.workflowNodes, event, status),
+      reasoning,
     }
   }
 
@@ -155,12 +366,30 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
       steps: next.steps.map((step) =>
         step.status === 'running' ? { ...step, status: 'done' as const } : step,
       ),
+      items: next.items.map((item) =>
+        item.status === 'running' ? { ...item, status: 'done' as const } : item,
+      ),
     }
   }
 
   return next
 }
 
+export function hasThinkingActivity(message: Message): boolean {
+  return (
+    message.reasoning.trim().length > 0 ||
+    message.items.length > 0 ||
+    message.steps.length > 0
+  )
+}
+
 export function hasAgentActivity(message: Message): boolean {
-  return message.steps.length > 0 || message.workflowNodes.length > 0
+  return hasThinkingActivity(message) || message.workflowNodes.length > 0
+}
+
+export function thinkingItemCount(message: Message): number {
+  const itemCount = message.items.length
+  const stepCount = message.steps.length
+  const hasReasoning = message.reasoning.trim().length > 0 ? 1 : 0
+  return Math.max(itemCount, stepCount, hasReasoning)
 }

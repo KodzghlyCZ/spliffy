@@ -23,7 +23,7 @@ Browser  →  Spliffy backend (FastAPI)  →  Dify API
 | SSE client | `frontend/src/lib/chat.ts` | Fetch stream reader + SSE chunk parser |
 | Stream state | `frontend/src/lib/streamState.ts` | Event → message state reducer |
 | Chat UI | `frontend/src/components/Chat.tsx` | Message list, composer, stream handler |
-| Agent UI | `frontend/src/components/AgentSteps.tsx` | Thought + tool call timeline |
+| Thinking UI | `frontend/src/components/ThinkingPanel.tsx` | Cursor-style reasoning + tool activity |
 | Workflow UI | `frontend/src/components/WorkflowProgress.tsx` | Node stepper for Chatflow apps |
 
 ## Dify SSE Events
@@ -38,13 +38,26 @@ Spliffy handles the following Dify streaming events. All others are received but
 | `agent_message` | Agent | `answer` |
 | `text_chunk` | Advanced Chat / Chatflow | `data.text` |
 
-### Agent progress
+### Thinking / reasoning (shown in `ThinkingPanel`)
 
-| Event | Fields used | UI effect |
-|-------|-------------|-----------|
-| `agent_thought` | `id`, `position`, `thought`, `tool`, `tool_input`, `observation` | Upsert step in `AgentSteps` timeline |
+Different Dify app types emit thoughts through different events:
 
-Steps are keyed by `id` and sorted by `position`. Dify sends multiple `agent_thought` events for the same step as reasoning and tool results arrive; Spliffy merges them in place.
+| Event | Dify source | Fields used | UI effect |
+|-------|-------------|-------------|-----------|
+| `agent_thought` | Agent apps | `thought`, `tool`, `tool_input`, `observation` | Reasoning lines + compact tool actions |
+| `agent_log` | Agent nodes in Chatflow | `label`, `metadata.thought`, `metadata.action`, `data` | ReAct rounds, model thoughts, tool calls |
+| `reasoning_chunk` | LLM nodes (`reasoning_format: separated`) | `data.reasoning` | Live streaming chain-of-thought prose |
+| `node_finished` | LLM nodes | `data.outputs.reasoning_content` | Batch reasoning when node completes |
+
+**Important:** If you see workflow nodes but no thoughts, your Chatflow likely emits `agent_log` or `reasoning_chunk` — not `agent_thought`. Spliffy handles all of these.
+
+#### Dify configuration for visible thoughts
+
+| What you want | Dify setup |
+|---------------|------------|
+| Agent tool/reasoning chain in Chatflow | Use an **Agent node** — emits `agent_log` automatically |
+| LLM chain-of-thought streaming | Set LLM node **Reasoning format** to **Separated** — emits `reasoning_chunk` |
+| Standalone Agent app thoughts | Use an **Agent** app — emits `agent_thought` |
 
 ### Workflow progress (Advanced Chat / Chatflow)
 
@@ -52,6 +65,8 @@ Steps are keyed by `id` and sorted by `position`. Dify sends multiple `agent_tho
 |-------|-------------|-----------|
 | `node_started` | `data.id`, `data.node_id`, `data.title`, `data.node_type` | Add/update node as **running** |
 | `node_finished` | `data.status`, `data.elapsed_time` | Mark node **succeeded** / **failed** / **stopped** |
+
+When thinking activity is present, workflow progress collapses to a compact summary so thoughts remain the focus.
 
 ### Lifecycle
 
@@ -74,8 +89,10 @@ Steps are keyed by `id` and sorted by `position`. Dify sends multiple `agent_tho
 type Message = {
   id: string
   role: 'user' | 'assistant'
-  content: string           // final answer text
-  steps: AgentStep[]        // from agent_thought
+  content: string              // final answer text
+  reasoning: string            // accumulated reasoning_chunk / reasoning_content
+  items: ThinkingItem[]        // agent_log + derived agent_thought entries
+  steps: AgentStep[]             // raw agent_thought state
   workflowNodes: WorkflowNode[]
   streaming: boolean
 }
@@ -85,17 +102,28 @@ Stream events are applied via `applyStreamEvent()` in `frontend/src/lib/streamSt
 
 ## UI Behaviour
 
+### ThinkingPanel (Cursor-style)
+
+The thinking UI is designed to feel like Cursor's inline reasoning display:
+
+1. **Left accent bar** with a compact header ("Thinking" while live, "Thought" when done).
+2. **Streaming prose** — `reasoning_chunk` text appears as muted narrative with a blinking cursor.
+3. **Compact action lines** — tool calls shown as `→ Used {tool}` rather than raw JSON.
+4. **Details on demand** — tool inputs hidden behind a small "Details" expander.
+5. **Auto-expand while streaming**, collapsible when complete.
+6. **Auto-scroll** — the thinking body scrolls as new content arrives.
+
 ### While streaming
 
-1. **Typing dots** — shown only when there is no answer text and no agent/workflow activity yet.
-2. **AgentSteps** — expanded automatically; shows reasoning, tool inputs, and results as they arrive.
-3. **WorkflowProgress** — lists nodes with live status as `node_started` / `node_finished` events arrive.
+1. **Typing dots** — shown only when there is no answer text and no thinking/workflow activity yet.
+2. **ThinkingPanel** — primary focus for reasoning and tool activity.
+3. **WorkflowProgress** — compact/collapsible when thinking is active; shows current running node.
 4. **Answer bubble** — fills incrementally from `message`, `agent_message`, or `text_chunk`.
 
 ### After streaming completes
 
 1. `streaming` flag set to `false` on stream end (or `message_end` / `workflow_finished`).
-2. **AgentSteps** collapses to a toggleable "Thought process" panel.
+2. **ThinkingPanel** collapses to a "Thought · N steps" header (click to expand).
 3. Answer text remains in the bubble.
 
 ## Configuration
@@ -106,52 +134,67 @@ Spliffy connects to a Dify **Chat App** via `backend/config.yaml`:
 dify:
   enabled: true
   name: Spliffy
+  markdown: false
   base_url: http://127.0.0.1/v1
   api_key: ${DIFY_API_KEY}
 ```
+
+Set `dify.markdown: true` to render assistant responses (and the opening statement) as Markdown. Disabled by default.
 
 The Dify app type determines which events you will see:
 
 | Dify app type | Expected events | Spliffy UI |
 |---------------|-----------------|------------|
 | Basic Chat | `message` | Answer text only |
-| Agent | `agent_message`, `agent_thought` | Answer + AgentSteps |
-| Advanced Chat / Chatflow | `text_chunk`, `node_started`, `node_finished` | Answer + WorkflowProgress |
-
-Use a Dify **Agent** app to see thought/tool UI. Use an **Advanced Chat** (Chatflow) app to see workflow node progress.
+| Agent | `agent_message`, `agent_thought` | Answer + ThinkingPanel |
+| Advanced Chat / Chatflow (LLM) | `text_chunk`, `reasoning_chunk`, `node_*` | Answer + ThinkingPanel + WorkflowProgress |
+| Advanced Chat / Chatflow (Agent node) | `agent_log`, `node_*` | Answer + ThinkingPanel + WorkflowProgress |
 
 ## Validation Checklist
 
 Use this after deploy or when debugging missing realtime UI.
 
-1. **Confirm Dify app type** — Agent vs Chatflow determines event shape.
-2. **Send a message that triggers tools** (Agent) or multiple workflow nodes (Chatflow).
-3. **Inspect raw SSE** in browser DevTools → Network → `POST /api/chat/messages`:
+1. **Confirm Dify app type and node types** — Agent app vs Chatflow with Agent/LLM nodes.
+2. **Check Dify node settings** — LLM nodes need `reasoning_format: separated` for `reasoning_chunk`.
+3. **Send a message that triggers tools or reasoning**.
+4. **Inspect raw SSE** in browser DevTools → Network → `POST /api/chat/messages`:
    - Response type should be `text/event-stream`.
-   - Look for `agent_thought`, `agent_message`, or `node_started` events.
-4. **Verify Spliffy UI**:
-   - Agent: "Thinking…" panel appears before/during answer.
-   - Chatflow: node list appears with running → done transitions.
+   - Look for `reasoning_chunk`, `agent_log`, `agent_thought`, or `node_started` events.
+5. **Verify Spliffy UI**:
+   - "Thinking" panel appears with streaming prose and/or tool lines.
+   - Workflow nodes appear in compact stepper (if Chatflow).
    - Answer streams into the bubble.
-5. **Check proxy buffering** (production behind nginx/CDN):
+6. **Check proxy buffering** (production behind nginx/CDN):
    - Backend sends `Cache-Control: no-cache`, `X-Accel-Buffering: no`.
    - If events arrive in DevTools but UI updates in one batch, suspect proxy buffering.
 
 ## Troubleshooting
 
+### Workflow shows but no thoughts (most common)
+
+**Symptom:** Workflow node stepper works, but no "Thinking" panel appears.
+
+**Cause:** Chatflow apps do not emit `agent_thought`. Thoughts come from other events.
+
+**Checks:**
+1. Inspect SSE for `agent_log` events (Agent nodes) or `reasoning_chunk` (LLM nodes with separated reasoning).
+2. For LLM nodes: set **Reasoning format → Separated** in the Dify workflow editor.
+3. For Agent nodes: ensure the workflow uses an **Agent node** (not just an LLM node) — Agent nodes emit `agent_log` with `ROUND N` and thought metadata.
+4. If only `node_finished` arrives with `outputs.reasoning_content`, thoughts appear when the node completes (not incrementally).
+
 ### Answer never appears (Agent app)
 
-**Symptom:** AgentSteps show activity but the answer bubble stays empty.
+**Symptom:** ThinkingPanel shows activity but the answer bubble stays empty.
 
 **Cause:** Dify Agent mode emits `agent_message`, not `message`. Spliffy handles both — if this still fails, check raw SSE for the event name Dify is actually sending.
 
-### No thought/tool UI
+### No thought/tool UI at all
 
-**Symptom:** Only answer text appears; no AgentSteps panel.
+**Symptom:** Only answer text appears; no ThinkingPanel.
 
 **Checks:**
-- Dify app must be **Agent** type (basic Chat apps do not emit `agent_thought`).
-- Inspect SSE for `agent_thought` events — if absent, the agent may not be using tools/reasoning.
+- Basic Chat apps do not emit thinking events.
+- Inspect SSE — if no `agent_thought`, `agent_log`, or `reasoning_chunk` events arrive, the Dify app/nodes are not configured for reasoning output.
 - If events are present in Network tab but not in UI, check browser console for JSON parse errors.
 
 ### No workflow node UI
@@ -219,7 +262,7 @@ Priority extensions not yet implemented:
 - `frontend/src/lib/chat.ts` — SSE transport + `DifyStreamEvent` types
 - `frontend/src/lib/streamState.ts` — event reducer + message types
 - `frontend/src/components/Chat.tsx` — stream handler wiring
-- `frontend/src/components/AgentSteps.tsx` — agent thought/tool UI
+- `frontend/src/components/ThinkingPanel.tsx` — Cursor-style thinking UI
 - `frontend/src/components/WorkflowProgress.tsx` — workflow node UI
 - `frontend/src/i18n/locales/en.json` / `cs.json` — UI strings
 - `backend/app/dify/routes.py` — SSE endpoint
@@ -235,4 +278,4 @@ cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 
 cd frontend && npm run dev
 ```
 
-Point `backend/config.yaml` at your Dify instance, send a message that triggers agent tools, and watch DevTools Network for SSE events alongside the UI.
+Point `backend/config.yaml` at your Dify instance, send a message that triggers agent tools or LLM reasoning, and watch DevTools Network for SSE events alongside the UI.

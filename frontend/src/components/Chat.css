@@ -162,13 +162,17 @@
   animation: chat-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.chat-empty p {
+.chat-empty p,
+.chat-empty__intro {
   margin: 0;
   color: var(--text-muted);
   max-width: 28rem;
-  white-space: pre-wrap;
   line-height: 1.6;
   animation: chat-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.chat-empty p {
+  white-space: pre-wrap;
 }
 
 .chat-suggestions--empty {
