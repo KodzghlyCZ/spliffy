@@ -28,7 +28,6 @@ function detectLanguage(): Language {
 
 function applyDocumentLanguage(language: string) {
   document.documentElement.lang = language
-  document.title = i18n.t('app.name')
 }
 
 void i18n.use(initReactI18next).init({

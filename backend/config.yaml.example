@@ -19,6 +19,20 @@ auth:
 dify:
   enabled: false
   name: Spliffy
+  # Per-locale grammatical forms (default = branding; message = "Message X" / "Napsat X")
+  name_forms:
+    en:
+      default: Spliffy
+      message: Spliffy
+    cs:
+      default: Spliffy
+      message: Spliffy
+  # Example for a personal assistant named Sofie:
+  # name: Sofie
+  # name_forms:
+  #   cs:
+  #     default: Sofie
+  #     message: Sofii   # "Napsat Sofii" not "Napsat Sofie"
   markdown: false
   show_sources: true
   # Self-hosted example: http://127.0.0.1/v1 or http://api:5001/v1 from another container
@@ -27,7 +41,7 @@ dify:
 
 # Optional: resolve citation URLs from RAGFlow when Dify agent logs contain document_id
 # but message_end lacks retriever_resources (common with RAGFlow plugin retrieval).
-.ragflow:
+ragflow:
   enabled: false
   api_url: http://127.0.0.1:9380
   api_key: ${RAGFLOW_API_KEY}

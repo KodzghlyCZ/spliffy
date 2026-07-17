@@ -127,7 +127,10 @@ Citations arrive on **`message_end`**, not a separate `retriever_resources` even
 | `backend/app/dify/routes.py` | Passes `citations_enabled`; wraps SSE with `RagflowCitationStreamEnricher` |
 | `backend/app/dify/stream_enricher.py` | Injects `retriever_resources` on `message_end` from agent_log chunks |
 | `backend/app/dify/ragflow_citations.py` | Parses RAGFlow tool responses; fetches document `meta_fields` |
-| `backend/app/settings.py` | `dify.show_sources` and optional `ragflow.*` config |
+| `backend/app/dify/zpl_citations.py` | Parses `get_law_excerpt` tool JSON → citation resources |
+| `backend/app/dify/tool_labels.py` | Localized friendly labels for agent tool names |
+| `backend/app/settings.py` | `dify.show_sources`, optional `ragflow.*`, `tool_labels.*` |
+| `frontend/src/lib/chat.ts` | Sends UI `locale` with chat requests |
 
 ### Config
 
@@ -144,9 +147,30 @@ ragflow:
   api_key: ${RAGFLOW_API_KEY}
   default_dataset_id: "<ragflow-dataset-id>"
   dataset_name: edu-gov-cz
+
+tool_labels:
+  enabled: true
+  default_locale: cs
+  tools:
+    get_law_excerpt:
+      cs: "Ověřuji legislativu: {{reference}} § {{paragraph}}"
 ```
 
 Spliffy shows chips when **both** `show_sources: true` and Dify `retriever_resource.enabled` are on. With `ragflow.enabled: true`, Spliffy can also synthesize citations from agent tool logs when Dify omits them.
+
+### ZPL MCP (`get_law_excerpt`)
+
+When the Dify agent calls **zpl-mcp** `get_law_excerpt`, Spliffy parses the tool response JSON and builds a `retriever_resources` entry from:
+
+- **`url`** — zakonyprolidi.cz page URL, preferably with `#f…` § fragment (from zpl-adapter)
+- **`excerpt`** — short text snippet (Dify-safe field name; not `text`)
+- **`reference`**, **`paragraph`** — for chip titles / tool labels
+
+ZPL and RAGFlow sources are merged on `message_end` (`merge_citation_resources` in `stream_enricher.py`). Configure the Dify agent to cite with in-text markdown links — see [§5 Inline citations](#5-inline-citations-intext-nurl).
+
+### Tool labels
+
+With `tool_labels.enabled: true`, Spliffy rewrites `agent_thought` / tool-call labels in the SSE stream before they reach the browser. Templates live under `tool_labels.tools.<tool_name>.<locale>` in `config.yaml`. Locale is resolved from the chat POST body (`locale`) or `Accept-Language`.
 
 ### Link resolution order
 
@@ -168,29 +192,50 @@ Chips without a URL are expandable to show the retrieved snippet.
 | `citations_enabled: false` | `GET /api/chat/parameters` — enable in Dify app |
 | Metadata in RAGFlow, not Dify | External KB ID; RAGFlow version / pagination bug |
 | Wrong URL | myskin frontmatter `source_url` on source file |
+| Law chips missing / wrong link | zpl-mcp returns `excerpt` + `url` with `#f…`; agent must use tool URL in `[n](url)` |
+| Raw tool names in UI | Enable `tool_labels.enabled`; check chat request `locale` |
 
 ### Quick tests
 
 ```bash
 # Spliffy: citations gate
-curl -sS https://test.chat.catania-service.cz/api/chat/parameters | jq '.citations_enabled'
+curl -sS https://sofie-dev.chat.catania-service.cz/api/chat/parameters | jq '.citations_enabled'
 
 # Spliffy: sources config
-curl -sS https://test.chat.catania-service.cz/api/chat/config | jq '.show_sources'
+curl -sS https://sofie-dev.chat.catania-service.cz/api/chat/config | jq '.show_sources'
 ```
 
 During chat: browser DevTools → `POST /api/chat/messages` → filter SSE for `message_end`.
 
 ---
 
-## 5. Inline `[1]` markers (future)
+## 5. Inline citations (`[n](url)`)
 
-RAGFlow chat can embed `[1]` inside generated answer text. Dify typically attaches sources only on `message_end` without rewriting the answer. Spliffy currently uses **footer chips** below the bubble. Inline markers would need parsing `answer` text and matching positions to `retriever_resources.position`.
+Spliffy renders in-text markdown links whose label is **only a number** as styled citation pills inside the assistant bubble. Footer chips remain the canonical source list.
+
+**Important:** Spliffy does **not** trust tool-call order for numbering. It parses `[n](url)` from the answer text and **reorders `retriever_resources`** so chip `[1]` matches the model’s first in-text citation.
+
+Paste into the Dify agent / LLM instructions:
+
+```text
+When you cite evidence, use markdown links whose label is only the citation number and whose URL is the exact URL from a tool result (including any #fragment for laws):
+
+Podle školského zákona[1](https://www.zakonyprolidi.cz/cs/2004-561#f123) platí …
+
+Rules:
+- Number citations in the order you first use them: 1, 2, 3, …
+- Label must be only the number (e.g. [1](https://…)), never the document title inside the brackets.
+- Always copy the real URL returned by the tool — never invent or guess URLs.
+- For zákonyprolidi.cz prefer the deep-link URL with #f… when the tool provides it.
+- Reuse the same number if you cite the same URL again.
+- Do not invent citation numbers that have no matching tool URL.
+```
 
 ---
 
 ## Related runbooks
 
 - [agent-realtime-streaming.md](./agent-realtime-streaming.md) — SSE events, thinking panel
-- [infra RAGFlow ↔ myskin runbook](../../../infra-files/docs/ragflow-myskin/jbi-sv-01_ragflow-myskin-runbook.md) — push sync, hosts, SSRF, timezone
+- [infra RAGFlow ↔ myskin runbook](../../../infra-files/docs/ragflow-myskin/jbi-sv-01_ragflow-myskin-runbook.md) — push sync, hosts, REST connector override, timezone
+- [zpl-mcp README](../../../zpl-mcp/README.md) — `get_law_excerpt`, Dify timeouts, `ZPL_MCP_BULK_TOOLS`
 - [myskin instances README](../../../infra-files/servers/jbi-sv-00/myskin/instances/README.md) — deploy + first sync

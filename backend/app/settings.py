@@ -45,8 +45,18 @@ class DifySettings:
     base_url: str
     api_key: str
     name: str
+    name_forms: dict[str, dict[str, str]]
     markdown: bool
     show_sources: bool
+
+    def name_for(self, locale: str, form: str = "default") -> str:
+        locale = resolve_locale(locale)
+        for key in (locale, "en", "cs"):
+            locale_forms = self.name_forms.get(key, {})
+            value = locale_forms.get(form) or locale_forms.get("default")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return self.name
 
 
 @dataclass(frozen=True)
@@ -107,6 +117,22 @@ def _load_config() -> None:
         init(str(path))
     else:
         init([])
+
+
+def _read_name_forms(base_name: str) -> dict[str, dict[str, str]]:
+    raw = get("dify.name_forms", default={}) or {}
+    forms: dict[str, dict[str, str]] = {}
+    if isinstance(raw, dict):
+        for locale, locale_forms in raw.items():
+            if not isinstance(locale, str) or not isinstance(locale_forms, dict):
+                continue
+            cleaned: dict[str, str] = {}
+            for form_key, value in locale_forms.items():
+                if isinstance(form_key, str) and isinstance(value, str) and value.strip():
+                    cleaned[form_key.lower()] = value.strip()
+            if cleaned:
+                forms[locale.lower()] = cleaned
+    return forms
 
 
 def _read_tool_labels() -> ToolLabelSettings | None:
@@ -193,6 +219,7 @@ def _read_settings() -> Settings:
             base_url=dify_base_url,
             api_key=dify_api_key,
             name=dify_name,
+            name_forms=_read_name_forms(dify_name),
             markdown=dify_markdown,
             show_sources=dify_show_sources,
         ),

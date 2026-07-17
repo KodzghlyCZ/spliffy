@@ -1,6 +1,7 @@
 import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
+import { useAppName } from '../context/AppNameContext'
 import { fetchChatConfig, fetchChatParameters, parseConfigFlag, streamChatMessage } from '../lib/chat'
 import {
   applyStreamEvent,
@@ -24,9 +25,9 @@ function userInitial(userName: string | null | undefined, fallback: string) {
 
 export function Chat() {
   const { t } = useTranslation()
+  const { getName, initial: assistantInitial } = useAppName()
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
-  const [chatbotName, setChatbotName] = useState('Spliffy')
   const [markdownEnabled, setMarkdownEnabled] = useState(false)
   const [showSources, setShowSources] = useState(true)
   const [citationsEnabled, setCitationsEnabled] = useState(true)
@@ -47,9 +48,6 @@ export function Chat() {
     fetchChatConfig()
       .then((config) => {
         setChatEnabled(config.enabled)
-        if (config.name.trim()) {
-          setChatbotName(config.name.trim())
-        }
         setMarkdownEnabled(parseConfigFlag(config.markdown))
         setShowSources(config.show_sources !== false)
       })
@@ -153,6 +151,9 @@ export function Chat() {
     [conversationId, sending, t],
   )
 
+  const assistantName = getName('default')
+  const messageName = getName('message')
+
   if (authLoading || chatEnabled === null) {
     return <div className="chat-panel chat-status">{t('chat.loading')}</div>
   }
@@ -165,7 +166,7 @@ export function Chat() {
     return (
       <div className="chat-panel chat-status">
         <div className="chat-status-card">
-          <h2>{t('chat.welcomeTitle')}</h2>
+          <h2>{t('chat.welcomeTitle', { name: assistantName })}</h2>
           <p>{t('chat.welcomeBody')}</p>
           <button type="button" onClick={login}>
             {t('auth.logIn')}
@@ -193,7 +194,7 @@ export function Chat() {
         <div className="chat-messages">
           {!hasUserMessages ? (
             <div className="chat-empty">
-              <h2>{chatbotName}</h2>
+              <h2>{assistantName}</h2>
               <div className="chat-empty__intro">
                 <MessageContent
                   content={openingStatement || t('chat.emptyBody')}
@@ -232,10 +233,10 @@ export function Chat() {
                     className={`chat-avatar chat-avatar--${message.role}`}
                     aria-hidden="true"
                   >
-                    {isUser ? userInitial(displayName, t('chat.you').charAt(0)) : 'S'}
+                    {isUser ? userInitial(displayName, t('chat.you').charAt(0)) : assistantInitial}
                   </div>
                   <div className="chat-bubble-wrap">
-                    <div className="chat-meta">{isUser ? t('chat.you') : chatbotName}</div>
+                    <div className="chat-meta">{isUser ? t('chat.you') : assistantName}</div>
                     {!isUser ? (
                       <>
                         <ThinkingPanel message={message} streaming={isStreaming} />
@@ -287,7 +288,7 @@ export function Chat() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t('chat.placeholder')}
+              placeholder={t('chat.placeholder', { name: messageName })}
               rows={1}
               disabled={sending}
             />

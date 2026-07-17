@@ -3,6 +3,7 @@ import { apiFetch, apiPath } from './api'
 export type ChatConfig = {
   enabled: boolean
   name: string
+  names?: Record<string, Partial<Record<'default' | 'message', string>>>
   markdown?: boolean
   show_sources?: boolean
 }

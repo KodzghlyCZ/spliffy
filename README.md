@@ -101,6 +101,61 @@ For **Agent** and **Advanced Chat (Chatflow)** apps, Spliffy renders agent thoug
 
 For **RAG citation source chips** (myskin → RAGFlow → Dify → Spliffy), see [docs/runbooks/rag-citations.md](docs/runbooks/rag-citations.md).
 
+### Citation enrichment (RAGFlow + ZPL MCP)
+
+When Dify agent apps omit `retriever_resources` on `message_end` (common with RAGFlow plugin retrieval), Spliffy can synthesize citation chips from **`agent_log`** tool responses:
+
+| Source | Trigger | URL resolution |
+|--------|---------|----------------|
+| **RAGFlow** | `document_id` in retrieval tool JSON | RAGFlow API `meta_fields` (`url`, `source_url`, …) |
+| **zpl-mcp** | successful `get_law_excerpt` JSON | `url` field (zakonyprolidi.cz, including `#f…` § deep links) |
+
+Enable in `config.yaml`:
+
+```yaml
+dify:
+  show_sources: true
+
+ragflow:
+  enabled: true
+  api_url: http://10.0.1.133:9380
+  api_key: ${RAGFLOW_API_KEY}
+  default_dataset_id: "<dataset-id>"
+  dataset_name: edu-gov-cz
+```
+
+Set `RAGFLOW_API_KEY` in runtime `.env`. RAGFlow and ZPL sources are merged and deduplicated in the footer chip list.
+
+### Tool labels (agent UX)
+
+Rewrite raw Dify tool names in the SSE stream into localized status lines (e.g. “Hledám v dokumentech: …”). Locale comes from the chat request (`locale` field / `Accept-Language`), defaulting to `tool_labels.default_locale`.
+
+```yaml
+tool_labels:
+  enabled: true
+  default_locale: cs
+  default:
+    cs: "Používám {{tool}}"
+    en: "Using {{tool}}"
+  tools:
+    retrieval:
+      cs: "Hledám v dokumentech: {{query}}"
+      en: "Searching documents: {{query}}"
+    get_law_excerpt:
+      cs: "Ověřuji legislativu: {{reference}} § {{paragraph}}"
+      en: "Evaluating law: {{reference}} § {{paragraph}}"
+```
+
+Placeholders depend on the tool (`{{query}}`, `{{reference}}`, `{{paragraph}}`, …). See `backend/app/dify/tool_labels.py`.
+
+### UI locale + in-text citations
+
+The frontend sends the selected UI language (`spliffy-lang` in `localStorage`) with each chat request. Assistant answers can embed markdown links `[1](https://…)`; Spliffy styles them as pills and **reorders footer chips** to match the model’s numbering (see runbook prompt in [rag-citations.md](docs/runbooks/rag-citations.md)).
+
+### Production deploy (Catania)
+
+All of the above ships in the **Spliffy GitLab image** — no compose bind-mount overrides for app code. After merging changes here: CI builds `registry.gitlab.catania-service.cz/catania_dev/spliffy`, then on the host `docker compose pull && docker compose up -d` from `infra-files/servers/jbi-sv-00/spliffy/instances/<name>/`.
+
 ## Docker
 
 The image is a multi-stage build: Node builds the frontend, Python slim runs the API and serves static files from a single container (~180 MB).
