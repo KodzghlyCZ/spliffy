@@ -59,12 +59,42 @@ class RagflowSettings:
 
 
 @dataclass(frozen=True)
+class ToolLabelSettings:
+    enabled: bool
+    default_locale: str
+    tools: dict[str, dict[str, str]]
+    default_templates: dict[str, str]
+
+    def templates_for(self, locale: str) -> dict[str, str]:
+        locale = (locale or self.default_locale).lower()
+        fallback = self.default_locale
+        result: dict[str, str] = {}
+        for tool_name, locales in self.tools.items():
+            if not isinstance(locales, dict):
+                continue
+            template = locales.get(locale) or locales.get(fallback) or locales.get("en") or locales.get("cs")
+            if isinstance(template, str) and template.strip():
+                result[tool_name] = template.strip()
+        return result
+
+    def default_for(self, locale: str) -> str:
+        locale = (locale or self.default_locale).lower()
+        return (
+            self.default_templates.get(locale)
+            or self.default_templates.get(self.default_locale)
+            or self.default_templates.get("en")
+            or "{{tool}}"
+        )
+
+
+@dataclass(frozen=True)
 class Settings:
     cors_origins: tuple[str, ...]
     session_secret: str
     auth: AuthSettings
     dify: DifySettings
     ragflow: RagflowSettings | None
+    tool_labels: ToolLabelSettings | None
 
 
 def _config_path() -> Path:
@@ -77,6 +107,37 @@ def _load_config() -> None:
         init(str(path))
     else:
         init([])
+
+
+def _read_tool_labels() -> ToolLabelSettings | None:
+    enabled = _as_bool(get("tool_labels.enabled", default=False))
+    if not enabled:
+        return None
+
+    raw_tools = get("tool_labels.tools", default={}) or {}
+    tools: dict[str, dict[str, str]] = {}
+    if isinstance(raw_tools, dict):
+        for name, locales in raw_tools.items():
+            if not isinstance(name, str) or not isinstance(locales, dict):
+                continue
+            cleaned: dict[str, str] = {}
+            for locale, template in locales.items():
+                if isinstance(locale, str) and isinstance(template, str) and template.strip():
+                    cleaned[locale.lower()] = template.strip()
+            if cleaned:
+                tools[name] = cleaned
+
+    default_templates = {
+        "cs": str(get("tool_labels.default.cs", default="Používám {{tool}}")),
+        "en": str(get("tool_labels.default.en", default="Using {{tool}}")),
+    }
+
+    return ToolLabelSettings(
+        enabled=True,
+        default_locale=str(get("tool_labels.default_locale", default="cs")).lower() or "cs",
+        tools=tools,
+        default_templates=default_templates,
+    )
 
 
 def _read_settings() -> Settings:
@@ -136,9 +197,20 @@ def _read_settings() -> Settings:
             show_sources=dify_show_sources,
         ),
         ragflow=ragflow,
+        tool_labels=_read_tool_labels(),
     )
 
 
 def get_settings() -> Settings:
     _load_config()
     return _read_settings()
+
+
+def resolve_locale(value: object, *, default: str = "cs") -> str:
+    if isinstance(value, str) and value.strip():
+        normalized = value.strip().lower().replace("_", "-")
+        if normalized.startswith("cs"):
+            return "cs"
+        if normalized.startswith("en"):
+            return "en"
+    return default if default in {"cs", "en"} else "cs"

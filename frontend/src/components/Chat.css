@@ -280,6 +280,10 @@
   border-bottom-left-radius: 0.35rem;
 }
 
+.chat-bubble:empty {
+  display: none;
+}
+
 .chat-bubble--markdown {
   white-space: normal;
 }
@@ -464,6 +468,26 @@
   text-align: center;
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+@media (min-width: 641px) {
+  .chat-row,
+  .chat-composer-shell {
+    max-width: 64rem;
+  }
+
+  .chat-bubble-wrap {
+    max-width: min(100%, 52rem);
+  }
+
+  .chat-empty h2 {
+    max-width: 40rem;
+  }
+
+  .chat-empty__intro,
+  .chat-suggestions--empty {
+    max-width: 44rem;
+  }
 }
 
 @media (max-width: 640px) {

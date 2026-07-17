@@ -4,8 +4,44 @@
 
 .citation-sources__chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.citation-sources .citation-chip {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0.55rem;
+  padding: 0.35rem 0.6rem 0.35rem 0.4rem;
+}
+
+.citation-sources .citation-chip__label {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.citation-sources__more {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--accent, #3b82f6);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.2rem 0.15rem;
+  margin-top: 0.15rem;
+  text-align: left;
+  align-self: flex-start;
+}
+
+.citation-sources__more:hover {
+  text-decoration: underline;
 }
 
 .citation-chip {

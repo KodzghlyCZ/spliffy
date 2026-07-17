@@ -27,9 +27,23 @@ dify:
 
 # Optional: resolve citation URLs from RAGFlow when Dify agent logs contain document_id
 # but message_end lacks retriever_resources (common with RAGFlow plugin retrieval).
-ragflow:
+.ragflow:
   enabled: false
   api_url: http://127.0.0.1:9380
   api_key: ${RAGFLOW_API_KEY}
   default_dataset_id: ""
   dataset_name: RAGFlow
+
+tool_labels:
+  enabled: false
+  default_locale: cs
+  default:
+    cs: "Používám {{tool}}"
+    en: "Using {{tool}}"
+  tools:
+    retrieval:
+      cs: "Hledám v dokumentech: {{query}}"
+      en: "Searching documents: {{query}}"
+    get_law_excerpt:
+      cs: "Ověřuji legislativu: {{reference}} § {{paragraph}}"
+      en: "Evaluating law: {{reference}} § {{paragraph}}"

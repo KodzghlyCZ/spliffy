@@ -8,8 +8,8 @@ from starlette.responses import StreamingResponse
 
 from app.auth.routes import get_current_user, require_user
 from app.dify.client import DifyError, fetch_app_parameters, stream_chat_message
-from app.dify.stream_enricher import RagflowCitationStreamEnricher
-from app.settings import DifySettings, get_settings
+from app.dify.stream_enricher import StreamEnricher
+from app.settings import DifySettings, get_settings, resolve_locale
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -18,6 +18,7 @@ class ChatMessageRequest(BaseModel):
     query: str = Field(min_length=1)
     conversation_id: str = ""
     inputs: dict[str, object] = Field(default_factory=dict)
+    locale: str = ""
 
 
 def _dify_settings() -> DifySettings:
@@ -38,6 +39,21 @@ def _dify_user_id(request: Request) -> str:
         anonymous_id = str(uuid.uuid4())
         request.session["dify_user_id"] = anonymous_id
     return str(anonymous_id)
+
+
+def _request_locale(request: Request, body_locale: str = "") -> str:
+    settings = get_settings()
+    default = "cs"
+    if settings.tool_labels is not None:
+        default = settings.tool_labels.default_locale
+
+    if body_locale.strip():
+        return resolve_locale(body_locale, default=default)
+
+    accept = request.headers.get("accept-language") or ""
+    # Take the first language tag: "cs-CZ,cs;q=0.9,en;q=0.8" → cs-CZ
+    primary = accept.split(",")[0].split(";")[0].strip() if accept else ""
+    return resolve_locale(primary, default=default)
 
 
 @router.get("/config")
@@ -92,7 +108,13 @@ async def send_message(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     user_id = _dify_user_id(request)
-    enricher = RagflowCitationStreamEnricher(settings.ragflow)
+    locale = _request_locale(request, body.locale)
+    enricher = StreamEnricher(
+        ragflow=settings.ragflow,
+        tool_labels=settings.tool_labels,
+        locale=locale,
+        collect_citations=settings.dify.show_sources,
+    )
 
     async def event_stream():
         try:

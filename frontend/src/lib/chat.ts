@@ -21,6 +21,7 @@ export type ChatMessageRequest = {
   query: string
   conversation_id?: string
   inputs?: Record<string, unknown>
+  locale?: string
 }
 
 export type DifyWorkflowNodeData = {
@@ -139,6 +140,7 @@ export async function streamChatMessage(
       query: body.query,
       conversation_id: body.conversation_id ?? '',
       inputs: body.inputs ?? {},
+      locale: body.locale ?? localStorage.getItem('spliffy-lang') ?? '',
     }),
   })
 

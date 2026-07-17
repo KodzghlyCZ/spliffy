@@ -9,11 +9,20 @@ type MessageContentProps = {
 }
 
 const markdownComponents: Components = {
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    const label = String(children ?? '')
+    const isCitationRef = /^\[\d+\]$/.test(label.trim())
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={isCitationRef ? 'citation-ref' : undefined}
+      >
+        {children}
+      </a>
+    )
+  },
   pre: ({ children }) => <pre>{children}</pre>,
 }
 
