@@ -67,6 +67,7 @@ During local development, set `redirect_uri` to `http://localhost:5173/api/auth/
 export SESSION_SECRET=your-random-secret
 export OIDC_CLIENT_SECRET=your-keycloak-client-secret
 export DIFY_API_KEY=your-dify-app-api-key
+export RAGFLOW_API_KEY=your-ragflow-api-key   # optional, for agent-log citation enrichment
 ```
 
 ## Dify chat
@@ -97,6 +98,8 @@ When auth is enabled, logged-in users are passed to Dify as `user` (Keycloak `su
 | `POST /chat/messages` | Send a message (SSE stream) |
 
 For **Agent** and **Advanced Chat (Chatflow)** apps, Spliffy renders agent thoughts, tool calls, and workflow node progress in realtime as Dify streams SSE events. See [docs/runbooks/agent-realtime-streaming.md](docs/runbooks/agent-realtime-streaming.md) for architecture, event reference, validation, and troubleshooting.
+
+For **RAG citation source chips** (myskin → RAGFlow → Dify → Spliffy), see [docs/runbooks/rag-citations.md](docs/runbooks/rag-citations.md).
 
 ## Docker
 

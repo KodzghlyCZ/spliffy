@@ -24,3 +24,12 @@ dify:
   # Self-hosted example: http://127.0.0.1/v1 or http://api:5001/v1 from another container
   base_url: http://127.0.0.1/v1
   api_key: ${DIFY_API_KEY}
+
+# Optional: resolve citation URLs from RAGFlow when Dify agent logs contain document_id
+# but message_end lacks retriever_resources (common with RAGFlow plugin retrieval).
+ragflow:
+  enabled: false
+  api_url: http://127.0.0.1:9380
+  api_key: ${RAGFLOW_API_KEY}
+  default_dataset_id: ""
+  dataset_name: RAGFlow

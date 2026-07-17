@@ -8,6 +8,7 @@ from starlette.responses import StreamingResponse
 
 from app.auth.routes import get_current_user, require_user
 from app.dify.client import DifyError, fetch_app_parameters, stream_chat_message
+from app.dify.stream_enricher import RagflowCitationStreamEnricher
 from app.settings import DifySettings, get_settings
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -76,7 +77,7 @@ async def chat_parameters(
     return {
         "opening_statement": opening if isinstance(opening, str) else "",
         "suggested_questions": suggested if isinstance(suggested, list) else [],
-        "citations_enabled": citations_enabled,
+        "citations_enabled": citations_enabled or settings.dify.show_sources,
     }
 
 
@@ -91,15 +92,18 @@ async def send_message(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     user_id = _dify_user_id(request)
+    enricher = RagflowCitationStreamEnricher(settings.ragflow)
 
     async def event_stream():
         try:
-            async for chunk in stream_chat_message(
-                dify,
-                query=body.query,
-                user=user_id,
-                conversation_id=body.conversation_id,
-                inputs=body.inputs,
+            async for chunk in enricher.enrich(
+                stream_chat_message(
+                    dify,
+                    query=body.query,
+                    user=user_id,
+                    conversation_id=body.conversation_id,
+                    inputs=body.inputs,
+                )
             ):
                 yield chunk
         except DifyError as exc:

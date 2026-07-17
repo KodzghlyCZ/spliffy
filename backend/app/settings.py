@@ -50,11 +50,21 @@ class DifySettings:
 
 
 @dataclass(frozen=True)
+class RagflowSettings:
+    enabled: bool
+    api_url: str
+    api_key: str
+    default_dataset_id: str
+    dataset_name: str
+
+
+@dataclass(frozen=True)
 class Settings:
     cors_origins: tuple[str, ...]
     session_secret: str
     auth: AuthSettings
     dify: DifySettings
+    ragflow: RagflowSettings | None
 
 
 def _config_path() -> Path:
@@ -98,6 +108,17 @@ def _read_settings() -> Settings:
     if _as_bool(os.environ.get("SPLIFFY_MARKDOWN")):
         dify_markdown = True
 
+    ragflow: RagflowSettings | None = None
+    ragflow_enabled = _as_bool(get("ragflow.enabled", default=False))
+    if ragflow_enabled:
+        ragflow = RagflowSettings(
+            enabled=True,
+            api_url=str(get("ragflow.api_url", default="")).rstrip("/"),
+            api_key=str(get("ragflow.api_key", default="")),
+            default_dataset_id=str(get("ragflow.default_dataset_id", default="")),
+            dataset_name=str(get("ragflow.dataset_name", default="RAGFlow")),
+        )
+
     return Settings(
         cors_origins=tuple(cors_origins),
         session_secret=session_secret,
@@ -114,6 +135,7 @@ def _read_settings() -> Settings:
             markdown=dify_markdown,
             show_sources=dify_show_sources,
         ),
+        ragflow=ragflow,
     )
 
 
