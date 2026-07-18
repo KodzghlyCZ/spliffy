@@ -188,6 +188,26 @@ Use this after deploy or when debugging missing realtime UI.
 
 **Cause:** Dify Agent mode emits `agent_message`, not `message`. Spliffy handles both — if this still fails, check raw SSE for the event name Dify is actually sending.
 
+### Duplicate lines in thought process (tool labels repeated)
+
+**Symptom:** Thinking panel shows the same friendly label twice (e.g. two identical “Hledám v dokumentech: …” lines), a generic label plus a specific one (“Hledám v dokumentech” then “Hledám v dokumentech: …”), or the same § lines both as bullet items and again in the reasoning paragraph.
+
+**Cause:** Dify can emit the same tool activity through more than one SSE channel (`agent_log` from Agent nodes and `agent_thought` from Agent apps). With `tool_labels.enabled`, the backend rewrites both into the same Czech/English status strings. The frontend used to append each event separately without deduplication.
+
+**Fix (Spliffy ≥ Jul 2026):** `frontend/src/lib/streamState.ts` dedupes thinking items (exact match + drop generic prefix when a specific label exists) and hides reasoning lines that already appear as items. Backend `stream_enricher.py` merges duplicate label lines when updating `agent_thought`.
+
+**If duplicates persist:** Inspect SSE — note whether both `agent_log` and `agent_thought` carry the same rewritten `thought`. Check `tool_labels` templates for a bare tool fallback (`{{tool}}`) alongside a detailed template for the same call.
+
+### Final answer duplicated under Úvaha (↳ block)
+
+**Symptom:** The full assistant reply (markdown with citations, numbered list, **Shrnutí:**) appears in the thinking panel — often with the `↳` marker — while the same text is shown in the chat bubble below.
+
+**Cause:** Dify emits the final reply on the last agent step (`agent_thought` / `agent_log` ROUND) in `thought` or `observation`, not only in `agent_message` / `message` events.
+
+**Fix:** Backend strips `thought` / `observation` on tool-less `agent_thought` events and on final `agent_log` rounds. Frontend drops thinking items / reasoning that overlap the streamed answer (or match final-answer prose heuristics before the bubble finishes streaming).
+
+**If duplicates persist:** Inspect the last `agent_thought` / `agent_log` SSE payload — note which field carries the answer. Check that Spliffy backend is running with the updated `stream_enricher.py`.
+
 ### No thought/tool UI at all
 
 **Symptom:** Only answer text appears; no ThinkingPanel.

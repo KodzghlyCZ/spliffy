@@ -88,7 +88,7 @@ class StreamEnricher:
         label = str(data.get("label") or "")
         tool_calls = tool_calls_from_agent_log_data(data)
 
-        # Final-answer ROUND: model puts the reply in `thought` with no tools.
+        # Final-answer ROUND: model puts the reply in `thought` / `observation` with no tools.
         # Strip it so the thinking panel doesn't duplicate the chat bubble.
         if "round" in label.lower() and not tool_calls:
             event = deepcopy(event)
@@ -99,6 +99,8 @@ class StreamEnricher:
                 metadata = dict(metadata)
                 metadata.pop("thought", None)
                 metadata.pop("action", None)
+                metadata.pop("observation", None)
+                metadata.pop("output", None)
                 data["metadata"] = metadata
             inner = data.get("data")
             if isinstance(inner, dict):
@@ -106,9 +108,13 @@ class StreamEnricher:
                 inner.pop("thought", None)
                 inner.pop("action", None)
                 inner.pop("text", None)
+                inner.pop("observation", None)
+                inner.pop("output", None)
                 data["data"] = inner
             data.pop("thought", None)
             data.pop("action", None)
+            data.pop("observation", None)
+            data.pop("output", None)
             return event
 
         if self._tool_labels is None or not tool_calls:
@@ -144,30 +150,48 @@ class StreamEnricher:
 
         return event
 
+    def _merge_thought_labels(self, existing: str, label: str) -> str:
+        if not label.strip():
+            return existing
+        if not existing.strip():
+            return label
+        existing_lines = {
+            line.strip() for line in existing.splitlines() if line.strip()
+        }
+        new_lines = [
+            line
+            for line in label.splitlines()
+            if line.strip() and line.strip() not in existing_lines
+        ]
+        if not new_lines:
+            return existing
+        return existing.rstrip() + "\n" + "\n".join(new_lines)
+
     def _rewrite_agent_thought(self, event: dict[str, Any]) -> dict[str, Any]:
-        if self._tool_labels is None:
-            return event
-
         tool = event.get("tool")
+
+        if tool and self._tool_labels is not None:
+            tool_calls = parse_agent_thought_tools(tool, event.get("tool_input"))
+            if tool_calls:
+                label = self._friendly_label(tool_calls)
+                if label:
+                    event = dict(event)
+                    existing_thought = event.get("thought")
+                    if isinstance(existing_thought, str) and existing_thought.strip():
+                        event["thought"] = self._merge_thought_labels(existing_thought, label)
+                    else:
+                        event["thought"] = label
+                    event["tool"] = ""
+                    event["tool_input"] = ""
+                    return event
+
         if not tool:
+            # Final answer step (no tool call) — keep it in the chat bubble only.
+            event = dict(event)
+            event["thought"] = ""
+            event["observation"] = ""
             return event
 
-        tool_calls = parse_agent_thought_tools(tool, event.get("tool_input"))
-        if not tool_calls:
-            return event
-
-        label = self._friendly_label(tool_calls)
-        if not label:
-            return event
-
-        event = dict(event)
-        existing_thought = event.get("thought")
-        if isinstance(existing_thought, str) and existing_thought.strip():
-            event["thought"] = f"{existing_thought.rstrip()}\n{label}"
-        else:
-            event["thought"] = label
-        event["tool"] = ""
-        event["tool_input"] = ""
         return event
 
     def _ingest_agent_log(self, event: dict[str, Any]) -> None:

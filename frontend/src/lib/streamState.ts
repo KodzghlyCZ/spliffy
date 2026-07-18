@@ -95,6 +95,216 @@ function upsertThinkingItem(items: ThinkingItem[], item: ThinkingItem): Thinking
   return [...items, item]
 }
 
+function normalizeThinkingText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeComparableText(text: string): string {
+  return normalizeThinkingText(text).toLowerCase()
+}
+
+function sharedPrefixLength(left: string, right: string): number {
+  const limit = Math.min(left.length, right.length)
+  let index = 0
+  while (index < limit && left[index] === right[index]) {
+    index += 1
+  }
+  return index
+}
+
+const ANSWER_OVERLAP_MIN_CHARS = 120
+
+/** True when prose likely duplicates the assistant bubble (streaming-safe). */
+function textOverlapsAnswer(text: string, content: string): boolean {
+  const textNorm = normalizeComparableText(text)
+  const contentNorm = normalizeComparableText(content)
+  if (!textNorm || !contentNorm) {
+    return false
+  }
+
+  if (textNorm.length >= ANSWER_OVERLAP_MIN_CHARS && contentNorm.includes(textNorm)) {
+    return true
+  }
+  if (contentNorm.length >= ANSWER_OVERLAP_MIN_CHARS && textNorm.includes(contentNorm)) {
+    return true
+  }
+
+  return sharedPrefixLength(textNorm, contentNorm) >= ANSWER_OVERLAP_MIN_CHARS
+}
+
+/** Heuristic for final-answer prose before answer chunks arrive in `content`. */
+function isLikelyFinalAnswerProse(text: string, step?: AgentStep): boolean {
+  const trimmed = text.trim()
+  if (trimmed.length < 200 || step?.tool) {
+    return false
+  }
+
+  if (/^\*\*[^*]+\*\*/.test(trimmed) || /^#{1,3}\s/.test(trimmed)) {
+    return true
+  }
+  if (/^\d+\.\s+\*\*/.test(trimmed)) {
+    return true
+  }
+  if (trimmed.split(/\n\s*\n/).length >= 2 && trimmed.length > 400) {
+    return true
+  }
+
+  return trimmed.length > 600
+}
+
+function shouldIncludeStepText(
+  text: string | undefined,
+  step: AgentStep,
+  content: string,
+): text is string {
+  if (!text?.trim()) {
+    return false
+  }
+  if (textOverlapsAnswer(text, content)) {
+    return false
+  }
+  if (isLikelyFinalAnswerProse(text, step)) {
+    return false
+  }
+  return true
+}
+
+function stripAnswerFromThinking(message: Message): Message {
+  const content = message.content
+  const items = message.items.filter((item) => {
+    if (textOverlapsAnswer(item.text, content) || isLikelyFinalAnswerProse(item.text)) {
+      return false
+    }
+    if (item.detail && (textOverlapsAnswer(item.detail, content) || isLikelyFinalAnswerProse(item.detail))) {
+      return false
+    }
+    return true
+  })
+
+  let reasoning = message.reasoning
+  if (
+    textOverlapsAnswer(reasoning, content) ||
+    isLikelyFinalAnswerProse(reasoning)
+  ) {
+    reasoning = ''
+  }
+
+  return { ...message, items, reasoning }
+}
+
+function expandThinkingItems(items: ThinkingItem[]): ThinkingItem[] {
+  const expanded: ThinkingItem[] = []
+
+  for (const item of items) {
+    const lines = item.text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+    if (lines.length <= 1) {
+      expanded.push(item)
+      continue
+    }
+
+    lines.forEach((line, index) => {
+      expanded.push({
+        ...item,
+        id: `${item.id}~${index}`,
+        text: line,
+      })
+    })
+  }
+
+  return expanded
+}
+
+/** Drop duplicate lines and generic prefix labels when a specific label exists. */
+function dedupeThinkingItems(items: ThinkingItem[]): ThinkingItem[] {
+  const kept: ThinkingItem[] = []
+
+  for (const candidate of expandThinkingItems(items)) {
+    const candidateNorm = normalizeThinkingText(candidate.text)
+    if (!candidateNorm) {
+      continue
+    }
+
+    const duplicateIndex = kept.findIndex(
+      (entry) => normalizeThinkingText(entry.text) === candidateNorm,
+    )
+    if (duplicateIndex >= 0) {
+      kept[duplicateIndex] = {
+        ...kept[duplicateIndex],
+        ...candidate,
+        id: kept[duplicateIndex].id,
+        status:
+          candidate.status === 'running' || kept[duplicateIndex].status === 'running'
+            ? 'running'
+            : 'done',
+      }
+      continue
+    }
+
+    for (let index = kept.length - 1; index >= 0; index -= 1) {
+      const existingNorm = normalizeThinkingText(kept[index].text)
+      if (
+        candidateNorm.startsWith(existingNorm) &&
+        candidateNorm.length > existingNorm.length + 2
+      ) {
+        kept.splice(index, 1)
+      }
+    }
+
+    const subsumedByExisting = kept.some((entry) => {
+      const existingNorm = normalizeThinkingText(entry.text)
+      return (
+        existingNorm.startsWith(candidateNorm) &&
+        existingNorm.length > candidateNorm.length + 2
+      )
+    })
+    if (subsumedByExisting) {
+      continue
+    }
+
+    kept.push(candidate)
+  }
+
+  return kept
+}
+
+function dedupeReasoningAgainstItems(reasoning: string, items: ThinkingItem[]): string {
+  if (!reasoning.trim() || items.length === 0) {
+    return reasoning
+  }
+
+  const itemTexts = items.map((item) => normalizeThinkingText(item.text)).filter(Boolean)
+  const filteredLines = reasoning
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => {
+      const lineNorm = normalizeThinkingText(line)
+      if (!lineNorm) {
+        return false
+      }
+
+      if (itemTexts.includes(lineNorm)) {
+        return false
+      }
+
+      return !itemTexts.some(
+        (itemText) =>
+          itemText.startsWith(lineNorm) && itemText.length > lineNorm.length + 2,
+      )
+    })
+
+  return filteredLines.join('\n').trim()
+}
+
+function finalizeThinkingDisplay(message: Message): Message {
+  const items = dedupeThinkingItems(message.items)
+  const reasoning = dedupeReasoningAgainstItems(message.reasoning, items)
+  return stripAnswerFromThinking({ ...message, items, reasoning })
+}
+
 function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
   const log = event.data
   if (!log?.id) {
@@ -371,15 +581,19 @@ function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): AgentStep[
   return [...steps, nextStep].sort((a, b) => a.position - b.position)
 }
 
-function syncAgentStepItems(steps: AgentStep[], items: ThinkingItem[]): ThinkingItem[] {
+function syncAgentStepItems(
+  steps: AgentStep[],
+  items: ThinkingItem[],
+  content: string,
+): ThinkingItem[] {
   let nextItems = items
 
   for (const step of steps) {
-    if (step.thought) {
+    if (shouldIncludeStepText(step.thought, step, content)) {
       nextItems = upsertThinkingItem(nextItems, {
         id: `${step.id}-thought`,
         kind: 'thought',
-        text: step.thought,
+        text: step.thought!,
         status: step.status,
       })
     }
@@ -395,12 +609,12 @@ function syncAgentStepItems(steps: AgentStep[], items: ThinkingItem[]): Thinking
       })
     }
 
-    if (step.observation) {
+    if (shouldIncludeStepText(step.observation, step, content)) {
       nextItems = upsertThinkingItem(nextItems, {
         id: `${step.id}-observation`,
         kind: 'observation',
         label: step.tool,
-        text: step.observation,
+        text: step.observation!,
         status: 'done',
       })
     }
@@ -459,10 +673,10 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
   let next = message
 
   if (isAnswerEvent(event)) {
-    next = {
+    next = stripAnswerFromThinking({
       ...next,
       content: next.content + getAnswerChunk(event),
-    }
+    })
   }
 
   if (event.event === 'reasoning_chunk') {
@@ -480,7 +694,7 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
     next = {
       ...next,
       steps,
-      items: syncAgentStepItems(steps, next.items),
+      items: syncAgentStepItems(steps, next.items, next.content),
     }
   }
 
@@ -538,7 +752,7 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
       citations = alignCitationsToContent(next.content, citations)
     }
 
-    next = {
+    next = stripAnswerFromThinking({
       ...next,
       streaming: false,
       citations: citations.length > 0 ? citations : next.citations,
@@ -548,7 +762,16 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
       items: next.items.map((item) =>
         item.status === 'running' ? { ...item, status: 'done' as const } : item,
       ),
-    }
+    })
+  }
+
+  if (
+    event.event === 'agent_thought' ||
+    event.event === 'agent_log' ||
+    event.event === 'reasoning_chunk' ||
+    event.event === 'node_finished'
+  ) {
+    next = finalizeThinkingDisplay(next)
   }
 
   return next

@@ -132,17 +132,20 @@ def labels_for_tool_calls(
 ) -> str:
     """One friendly label per call, joined with newlines."""
     lines: list[str] = []
+    seen: set[str] = set()
     for tool_name, args in tool_calls:
         if not tool_name:
             continue
-        lines.append(
-            format_tool_label(
-                tool_name,
-                args,
-                templates=templates,
-                default_template=default_template,
-            )
+        label = format_tool_label(
+            tool_name,
+            args,
+            templates=templates,
+            default_template=default_template,
         )
+        if label in seen:
+            continue
+        seen.add(label)
+        lines.append(label)
     return "\n".join(lines)
 
 
