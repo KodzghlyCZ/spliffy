@@ -308,6 +308,44 @@ export function alignCitationsToContent(
   return aligned
 }
 
+export function splitCitationsByContent(
+  content: string,
+  citations: CitationSource[],
+): { cited: CitationSource[]; other: CitationSource[] } {
+  if (citations.length === 0) {
+    return { cited: [], other: [] }
+  }
+
+  const inlineUrls: string[] = []
+  const inlinePattern = /\[(\d+)\]\((https?:\/\/[^)\s]+)\)/g
+  let match: RegExpExecArray | null
+
+  while ((match = inlinePattern.exec(content)) !== null) {
+    inlineUrls.push(match[2])
+  }
+
+  if (inlineUrls.length === 0) {
+    return { cited: [], other: citations }
+  }
+
+  const cited: CitationSource[] = []
+  const other: CitationSource[] = []
+
+  for (const citation of citations) {
+    const isCited = inlineUrls.some((url) => citationUrlsMatch(citation.url, url))
+    if (isCited) {
+      cited.push(citation)
+    } else {
+      other.push(citation)
+    }
+  }
+
+  cited.sort((a, b) => a.position - b.position)
+  other.sort((a, b) => a.position - b.position)
+
+  return { cited, other }
+}
+
 function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): AgentStep[] {
   const stepId = event.id ?? `step-${event.position ?? steps.length}`
   const position = event.position ?? steps.length

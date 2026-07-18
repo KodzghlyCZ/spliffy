@@ -1,54 +1,59 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { CitationSource } from '../lib/streamState'
+import { splitCitationsByContent, type CitationSource } from '../lib/streamState'
 import './CitationSources.css'
 
-const MAX_VISIBLE_CITATIONS = 8
-
 type CitationSourcesProps = {
+  content: string
   citations: CitationSource[]
 }
 
-export function CitationSources({ citations }: CitationSourcesProps) {
+type CitationChipListProps = {
+  citations: CitationSource[]
+  showIndex: boolean
+  muted?: boolean
+}
+
+function CitationChipList({ citations, showIndex, muted = false }: CitationChipListProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<number | null>(null)
-  const [showAll, setShowAll] = useState(false)
 
   if (citations.length === 0) {
     return null
   }
 
-  const hasHidden = citations.length > MAX_VISIBLE_CITATIONS && !showAll
-  const visibleCitations = hasHidden
-    ? citations.slice(0, MAX_VISIBLE_CITATIONS)
-    : citations
-
   return (
-    <div className="citation-sources" aria-label={t('citations.label')}>
-      <div className="citation-sources__chips">
-        {visibleCitations.map((citation) => {
+    <>
+      <div className={`citation-sources__chips${muted ? ' citation-sources__chips--muted' : ''}`}>
+        {citations.map((citation) => {
           const label = citation.title
           const chipKey = `${citation.position}-${citation.url ?? citation.title}`
 
-          const chip = citation.url ? (
-            <a
-              key={chipKey}
-              className="citation-chip"
-              href={citation.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={citation.datasetName ?? label}
-            >
-              <span className="citation-chip__index">{citation.position}</span>
-              <span className="citation-chip__label">{label}</span>
-              <svg className="citation-chip__icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-                <path
-                  d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3ZM5 5h7v2H7v10h10v-5h2v7H5V5Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </a>
-          ) : (
+          if (citation.url) {
+            return (
+              <a
+                key={chipKey}
+                className="citation-chip"
+                href={citation.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={citation.datasetName ?? label}
+              >
+                {showIndex ? (
+                  <span className="citation-chip__index">{citation.position}</span>
+                ) : null}
+                <span className="citation-chip__label">{label}</span>
+                <svg className="citation-chip__icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                  <path
+                    d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3ZM5 5h7v2H7v10h10v-5h2v7H5V5Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </a>
+            )
+          }
+
+          return (
             <button
               key={chipKey}
               type="button"
@@ -58,27 +63,14 @@ export function CitationSources({ citations }: CitationSourcesProps) {
               }
               aria-expanded={expanded === citation.position}
             >
-              <span className="citation-chip__index">{citation.position}</span>
+              {showIndex ? (
+                <span className="citation-chip__index">{citation.position}</span>
+              ) : null}
               <span className="citation-chip__label">{label}</span>
             </button>
           )
-
-          return chip
         })}
       </div>
-
-      {citations.length > MAX_VISIBLE_CITATIONS ? (
-        <button
-          type="button"
-          className="citation-sources__more"
-          onClick={() => setShowAll((value) => !value)}
-          aria-expanded={showAll}
-        >
-          {showAll
-            ? t('citations.showLess')
-            : t('citations.showMore', { count: citations.length - MAX_VISIBLE_CITATIONS })}
-        </button>
-      ) : null}
 
       {expanded !== null ? (
         <div className="citation-sources__detail">
@@ -98,6 +90,52 @@ export function CitationSources({ citations }: CitationSourcesProps) {
               </div>
             ))}
         </div>
+      ) : null}
+    </>
+  )
+}
+
+export function CitationSources({ content, citations }: CitationSourcesProps) {
+  const { t } = useTranslation()
+  const [otherExpanded, setOtherExpanded] = useState(false)
+
+  const { cited, other } = useMemo(
+    () => splitCitationsByContent(content, citations),
+    [content, citations],
+  )
+
+  if (citations.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="citation-sources" aria-label={t('citations.label')}>
+      {cited.length > 0 ? (
+        <section className="citation-sources__section" aria-label={t('citations.citedLabel')}>
+          <CitationChipList citations={cited} showIndex />
+        </section>
+      ) : null}
+
+      {other.length > 0 ? (
+        <section className="citation-sources__section citation-sources__section--other">
+          <button
+            type="button"
+            className="citation-sources__other-toggle"
+            onClick={() => setOtherExpanded((value) => !value)}
+            aria-expanded={otherExpanded}
+          >
+            <span className="citation-sources__other-chevron" aria-hidden="true">
+              {otherExpanded ? '▾' : '▸'}
+            </span>
+            {otherExpanded
+              ? t('citations.otherHide')
+              : t('citations.otherShow', { count: other.length })}
+          </button>
+
+          {otherExpanded ? (
+            <CitationChipList citations={other} showIndex={false} muted />
+          ) : null}
+        </section>
       ) : null}
     </div>
   )

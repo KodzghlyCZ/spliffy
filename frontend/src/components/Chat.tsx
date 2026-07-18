@@ -242,6 +242,8 @@ export function Chat() {
               const isStreaming = sending && message.streaming
               const showTyping =
                 isStreaming && message.content === '' && !hasAgentActivity(message)
+              const showBubble =
+                isUser || message.content.trim().length > 0 || showTyping
 
               return (
                 <article
@@ -266,26 +268,31 @@ export function Chat() {
                         />
                       </>
                     ) : null}
-                    <div
-                      className={`chat-bubble chat-bubble--${message.role}${
-                        !isUser && markdownEnabled ? ' chat-bubble--markdown' : ''
-                      }`}
-                    >
-                      {showTyping ? (
-                        <span className="chat-typing" aria-label={t('chat.typing')}>
-                          <span />
-                          <span />
-                          <span />
-                        </span>
-                      ) : (
-                        <MessageContent
-                          content={message.content}
-                          markdown={!isUser && markdownEnabled}
-                        />
-                      )}
-                    </div>
+                    {showBubble ? (
+                      <div
+                        className={`chat-bubble chat-bubble--${message.role}${
+                          !isUser && markdownEnabled ? ' chat-bubble--markdown' : ''
+                        }`}
+                      >
+                        {showTyping ? (
+                          <span className="chat-typing" aria-label={t('chat.typing')}>
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                        ) : (
+                          <MessageContent
+                            content={message.content}
+                            markdown={!isUser && markdownEnabled}
+                          />
+                        )}
+                      </div>
+                    ) : null}
                     {!isUser && showSources && citationsEnabled ? (
-                      <CitationSources citations={message.citations} />
+                      <CitationSources
+                        content={message.content}
+                        citations={message.citations}
+                      />
                     ) : null}
                   </div>
                 </article>

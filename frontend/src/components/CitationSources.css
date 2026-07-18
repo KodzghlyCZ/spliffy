@@ -1,5 +1,44 @@
 .citation-sources {
   margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.citation-sources__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.citation-sources__section--other {
+  margin-top: 0.1rem;
+}
+
+.citation-sources__other-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 0.15rem 0;
+  text-align: left;
+  align-self: flex-start;
+}
+
+.citation-sources__other-toggle:hover {
+  color: var(--text);
+}
+
+.citation-sources__other-chevron {
+  font-size: 0.68rem;
+  opacity: 0.75;
 }
 
 .citation-sources__chips {
@@ -25,23 +64,14 @@
   white-space: nowrap;
 }
 
-.citation-sources__more {
-  appearance: none;
-  border: none;
+.citation-sources__chips--muted .citation-chip {
+  opacity: 0.82;
+  border-color: var(--border-subtle, rgba(127, 127, 127, 0.18));
   background: transparent;
-  color: var(--accent, #3b82f6);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.2rem 0.15rem;
-  margin-top: 0.15rem;
-  text-align: left;
-  align-self: flex-start;
 }
 
-.citation-sources__more:hover {
-  text-decoration: underline;
+.citation-sources__chips--muted .citation-chip:hover {
+  opacity: 1;
 }
 
 .citation-chip {
