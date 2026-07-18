@@ -48,6 +48,17 @@ ragflow:
   default_dataset_id: ""
   dataset_name: RAGFlow
 
+# Optional: override frontend UI strings per instance (no image rebuild required).
+# Prefer a ui_strings/ directory with one YAML file per locale (see backend/ui_strings/README.md).
+# When omitted, the bundled i18n defaults are used.
+ui_strings:
+  default_locale: cs
+  path: ui_strings
+  # Inline overrides (optional; merged on top of locale files):
+  # chat:
+  #   hint:
+  #     cs: "Toto je AI asistent. Může dělat chyby — ověřte důležité informace."
+
 tool_labels:
   enabled: false
   default_locale: cs

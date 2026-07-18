@@ -59,13 +59,20 @@ def _request_locale(request: Request, body_locale: str = "") -> str:
 @router.get("/config")
 def chat_config() -> dict[str, object]:
     settings = get_settings()
-    return {
+    payload: dict[str, object] = {
         "enabled": settings.dify.enabled and bool(settings.dify.api_key),
         "name": settings.dify.name,
         "names": settings.dify.name_forms,
         "markdown": settings.dify.markdown,
         "show_sources": settings.dify.show_sources,
     }
+    if settings.ui_strings is not None:
+        payload["ui_strings"] = {
+            "chat": {
+                "hint": settings.ui_strings.chat_hint,
+            },
+        }
+    return payload
 
 
 @router.get("/parameters")

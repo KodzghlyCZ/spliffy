@@ -6,6 +6,11 @@ export type ChatConfig = {
   names?: Record<string, Partial<Record<'default' | 'message', string>>>
   markdown?: boolean
   show_sources?: boolean
+  ui_strings?: {
+    chat?: {
+      hint?: Record<string, string>
+    }
+  }
 }
 
 export function parseConfigFlag(value: unknown): boolean {

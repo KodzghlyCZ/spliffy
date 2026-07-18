@@ -148,6 +148,25 @@ tool_labels:
 
 Placeholders depend on the tool (`{{query}}`, `{{reference}}`, `{{paragraph}}`, …). See `backend/app/dify/tool_labels.py`.
 
+### UI strings (per instance)
+
+Override frontend copy such as the composer footer without rebuilding the image. Add a `ui_strings/` directory with one YAML file per locale (`cs.yaml`, `en.yaml`, …). Copy a file to add a language.
+
+```yaml
+ui_strings:
+  default_locale: cs
+  path: ui_strings   # relative to config.yaml, or /app/ui_strings in Docker
+```
+
+Example `ui_strings/cs.yaml`:
+
+```yaml
+chat:
+  hint: "Toto je AI asistent. Může dělat chyby — ověřte důležité informace."
+```
+
+See `backend/ui_strings/README.md`. Inline `ui_strings.chat.hint` in `config.yaml` still works and overrides file values.
+
 ### UI locale + in-text citations
 
 The frontend sends the selected UI language (`spliffy-lang` in `localStorage`) with each chat request. Assistant answers can embed markdown links `[1](https://…)`; Spliffy styles them as pills and **reorders footer chips** to match the model’s numbering (see runbook prompt in [rag-citations.md](docs/runbooks/rag-citations.md)).

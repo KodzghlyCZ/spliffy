@@ -4,6 +4,8 @@ from pathlib import Path
 
 from yayaya import get, init
 
+from app.ui_strings_loader import load_chat_hints_from_dir, merge_chat_hints, resolve_ui_strings_dir
+
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
 
 
@@ -69,6 +71,20 @@ class RagflowSettings:
 
 
 @dataclass(frozen=True)
+class UiStringSettings:
+    default_locale: str
+    chat_hint: dict[str, str]
+
+    def hint_for(self, locale: str) -> str | None:
+        locale = resolve_locale(locale, default=self.default_locale)
+        for key in (locale, self.default_locale, "en", "cs"):
+            value = self.chat_hint.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+
+@dataclass(frozen=True)
 class ToolLabelSettings:
     enabled: bool
     default_locale: str
@@ -105,6 +121,7 @@ class Settings:
     dify: DifySettings
     ragflow: RagflowSettings | None
     tool_labels: ToolLabelSettings | None
+    ui_strings: UiStringSettings | None
 
 
 def _config_path() -> Path:
@@ -133,6 +150,34 @@ def _read_name_forms(base_name: str) -> dict[str, dict[str, str]]:
             if cleaned:
                 forms[locale.lower()] = cleaned
     return forms
+
+
+def _read_inline_chat_hints() -> dict[str, str]:
+    raw_hint = get("ui_strings.chat.hint", default={}) or {}
+    chat_hint: dict[str, str] = {}
+    if isinstance(raw_hint, dict):
+        for locale, value in raw_hint.items():
+            if isinstance(locale, str) and isinstance(value, str) and value.strip():
+                chat_hint[locale.lower()] = value.strip()
+    return chat_hint
+
+
+def _read_ui_strings() -> UiStringSettings | None:
+    default_locale = str(get("ui_strings.default_locale", default="cs")).lower() or "cs"
+
+    file_hints: dict[str, str] = {}
+    ui_strings_dir = resolve_ui_strings_dir(_config_path(), get("ui_strings.path", default=""))
+    if ui_strings_dir is not None:
+        file_hints = load_chat_hints_from_dir(ui_strings_dir)
+
+    chat_hint = merge_chat_hints(file_hints, _read_inline_chat_hints())
+    if not chat_hint:
+        return None
+
+    return UiStringSettings(
+        default_locale=default_locale,
+        chat_hint=chat_hint,
+    )
 
 
 def _read_tool_labels() -> ToolLabelSettings | None:
@@ -225,6 +270,7 @@ def _read_settings() -> Settings:
         ),
         ragflow=ragflow,
         tool_labels=_read_tool_labels(),
+        ui_strings=_read_ui_strings(),
     )
 
 

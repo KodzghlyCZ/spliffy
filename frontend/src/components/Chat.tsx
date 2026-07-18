@@ -23,8 +23,25 @@ function userInitial(userName: string | null | undefined, fallback: string) {
   return userName.trim().charAt(0).toUpperCase() || fallback
 }
 
+function resolveLocalizedString(
+  strings: Record<string, string> | undefined,
+  locale: string,
+): string | undefined {
+  if (!strings) {
+    return undefined
+  }
+  const normalizedLocale = locale.toLowerCase().startsWith('cs') ? 'cs' : 'en'
+  for (const key of [normalizedLocale, 'en', 'cs']) {
+    const value = strings[key]
+    if (value?.trim()) {
+      return value.trim()
+    }
+  }
+  return undefined
+}
+
 export function Chat() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { getName, initial: assistantInitial } = useAppName()
   const { loading: authLoading, config: authConfig, user, login } = useAuth()
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
@@ -38,6 +55,7 @@ export function Chat() {
   const [conversationId, setConversationId] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [chatHint, setChatHint] = useState<string | undefined>(undefined)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -50,9 +68,10 @@ export function Chat() {
         setChatEnabled(config.enabled)
         setMarkdownEnabled(parseConfigFlag(config.markdown))
         setShowSources(config.show_sources !== false)
+        setChatHint(resolveLocalizedString(config.ui_strings?.chat?.hint, i18n.language))
       })
       .catch(() => setChatEnabled(false))
-  }, [])
+  }, [i18n.language])
 
   useEffect(() => {
     if (authLoading || !chatEnabled || (authConfig?.enabled && !user)) {
@@ -306,7 +325,7 @@ export function Chat() {
               </svg>
             </button>
           </form>
-          <p className="chat-hint">{t('chat.hint')}</p>
+          <p className="chat-hint">{chatHint ?? t('chat.hint')}</p>
         </div>
       </div>
     </div>
