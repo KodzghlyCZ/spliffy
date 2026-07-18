@@ -129,7 +129,7 @@ Citations arrive on **`message_end`**, not a separate `retriever_resources` even
 | `backend/app/dify/ragflow_citations.py` | Parses RAGFlow tool responses; fetches document `meta_fields` |
 | `backend/app/dify/zpl_citations.py` | Parses `get_law_excerpt` tool JSON → citation resources |
 | `backend/app/dify/tool_labels.py` | Localized friendly labels for agent tool names |
-| `backend/app/settings.py` | `dify.show_sources`, optional `ragflow.*`, `tool_labels.*` |
+| `backend/app/settings.py` | `dify.show_sources`, optional `ragflow.*`, `tool_labels.*`, `ui_strings.*` |
 | `frontend/src/lib/chat.ts` | Sends UI `locale` with chat requests |
 
 ### Config
@@ -172,6 +172,10 @@ ZPL and RAGFlow sources are merged on `message_end` (`merge_citation_resources` 
 
 With `tool_labels.enabled: true`, Spliffy rewrites `agent_thought` / tool-call labels in the SSE stream before they reach the browser. Templates live under `tool_labels.tools.<tool_name>.<locale>` in `config.yaml`. Locale is resolved from the chat POST body (`locale`) or `Accept-Language`.
 
+### UI strings (composer footer)
+
+Per-instance footer text (e.g. AI disclaimer) via bind-mounted `ui_strings/` locale YAML — no image rebuild. See [ui-strings.md](./ui-strings.md).
+
 ### Link resolution order
 
 1. `doc_metadata.url`
@@ -202,7 +206,7 @@ Chips without a URL are expandable to show the retrieved snippet.
 curl -sS https://sofie-dev.chat.catania-service.cz/api/chat/parameters | jq '.citations_enabled'
 
 # Spliffy: sources config
-curl -sS https://sofie-dev.chat.catania-service.cz/api/chat/config | jq '.show_sources'
+curl -sS https://sofie-dev.chat.catania-service.cz/api/chat/config | jq '.show_sources, .ui_strings'
 ```
 
 During chat: browser DevTools → `POST /api/chat/messages` → filter SSE for `message_end`.

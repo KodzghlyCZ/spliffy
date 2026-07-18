@@ -237,6 +237,77 @@ export function parseRetrieverResources(
   return citations.sort((a, b) => a.position - b.position)
 }
 
+function citationUrlsMatch(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) {
+    return false
+  }
+  try {
+    const left = new URL(a)
+    const right = new URL(b)
+    return (
+      left.origin === right.origin &&
+      left.pathname.replace(/\/$/, '') === right.pathname.replace(/\/$/, '') &&
+      left.hash === right.hash
+    )
+  } catch {
+    return a === b
+  }
+}
+
+/** Reorder footer chips to match [n](url) numbering in the assistant answer. */
+export function alignCitationsToContent(
+  content: string,
+  citations: CitationSource[],
+): CitationSource[] {
+  if (!content || citations.length === 0) {
+    return citations
+  }
+
+  const inlinePattern = /\[(\d+)\]\((https?:\/\/[^)\s]+)\)/g
+  const inlineByNumber = new Map<number, string>()
+  let match: RegExpExecArray | null
+
+  while ((match = inlinePattern.exec(content)) !== null) {
+    const position = Number(match[1])
+    const url = match[2]
+    if (Number.isFinite(position) && position > 0 && !inlineByNumber.has(position)) {
+      inlineByNumber.set(position, url)
+    }
+  }
+
+  if (inlineByNumber.size === 0) {
+    return citations
+  }
+
+  const used = new Set<CitationSource>()
+  const aligned: CitationSource[] = []
+  const orderedNumbers = [...inlineByNumber.keys()].sort((a, b) => a - b)
+
+  for (const position of orderedNumbers) {
+    const inlineUrl = inlineByNumber.get(position)
+    const matched = citations.find(
+      (citation) => !used.has(citation) && citationUrlsMatch(citation.url, inlineUrl),
+    )
+
+    if (matched) {
+      used.add(matched)
+      aligned.push({ ...matched, position })
+    } else if (inlineUrl) {
+      aligned.push({ position, title: inlineUrl, url: inlineUrl })
+    }
+  }
+
+  let nextPosition = (orderedNumbers.at(-1) ?? 0) + 1
+  for (const citation of citations) {
+    if (!used.has(citation)) {
+      aligned.push({ ...citation, position: nextPosition })
+      nextPosition += 1
+    }
+  }
+
+  return aligned
+}
+
 function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): AgentStep[] {
   const stepId = event.id ?? `step-${event.position ?? steps.length}`
   const position = event.position ?? steps.length
@@ -420,10 +491,14 @@ export function applyStreamEvent(message: Message, event: DifyStreamEvent): Mess
   }
 
   if (event.event === 'message_end' || event.event === 'workflow_finished') {
-    const citations =
+    let citations =
       event.event === 'message_end'
         ? parseRetrieverResources(event.metadata?.retriever_resources)
         : next.citations
+
+    if (citations.length > 0) {
+      citations = alignCitationsToContent(next.content, citations)
+    }
 
     next = {
       ...next,

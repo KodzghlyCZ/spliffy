@@ -11,7 +11,7 @@ type MessageContentProps = {
 const markdownComponents: Components = {
   a: ({ href, children }) => {
     const label = String(children ?? '')
-    const isCitationRef = /^\[\d+\]$/.test(label.trim())
+    const isCitationRef = /^\[?\d+\]?$/.test(label.trim())
     return (
       <a
         href={href}

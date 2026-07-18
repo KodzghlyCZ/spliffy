@@ -70,6 +70,8 @@
   },
   "citations": {
     "label": "Sources",
-    "score": "Relevance {{score}}"
+    "score": "Relevance {{score}}",
+    "showMore": "Show {{count}} more",
+    "showLess": "Show less"
   }
 }

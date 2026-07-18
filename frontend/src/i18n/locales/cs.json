@@ -70,6 +70,8 @@
   },
   "citations": {
     "label": "Zdroje",
-    "score": "Relevance {{score}}"
+    "score": "Relevance {{score}}",
+    "showMore": "Zobrazit dalších {{count}}",
+    "showLess": "Zobrazit méně"
   }
 }

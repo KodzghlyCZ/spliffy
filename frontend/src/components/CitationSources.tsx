@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import type { CitationSource } from '../lib/streamState'
 import './CitationSources.css'
 
+const MAX_VISIBLE_CITATIONS = 8
+
 type CitationSourcesProps = {
   citations: CitationSource[]
 }
@@ -10,19 +12,27 @@ type CitationSourcesProps = {
 export function CitationSources({ citations }: CitationSourcesProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [showAll, setShowAll] = useState(false)
 
   if (citations.length === 0) {
     return null
   }
 
+  const hasHidden = citations.length > MAX_VISIBLE_CITATIONS && !showAll
+  const visibleCitations = hasHidden
+    ? citations.slice(0, MAX_VISIBLE_CITATIONS)
+    : citations
+
   return (
     <div className="citation-sources" aria-label={t('citations.label')}>
       <div className="citation-sources__chips">
-        {citations.map((citation) => {
+        {visibleCitations.map((citation) => {
           const label = citation.title
+          const chipKey = `${citation.position}-${citation.url ?? citation.title}`
+
           const chip = citation.url ? (
             <a
-              key={`${citation.position}-${citation.title}`}
+              key={chipKey}
               className="citation-chip"
               href={citation.url}
               target="_blank"
@@ -40,7 +50,7 @@ export function CitationSources({ citations }: CitationSourcesProps) {
             </a>
           ) : (
             <button
-              key={`${citation.position}-${citation.title}`}
+              key={chipKey}
               type="button"
               className="citation-chip citation-chip--static"
               onClick={() =>
@@ -56,6 +66,19 @@ export function CitationSources({ citations }: CitationSourcesProps) {
           return chip
         })}
       </div>
+
+      {citations.length > MAX_VISIBLE_CITATIONS ? (
+        <button
+          type="button"
+          className="citation-sources__more"
+          onClick={() => setShowAll((value) => !value)}
+          aria-expanded={showAll}
+        >
+          {showAll
+            ? t('citations.showLess')
+            : t('citations.showMore', { count: citations.length - MAX_VISIBLE_CITATIONS })}
+        </button>
+      ) : null}
 
       {expanded !== null ? (
         <div className="citation-sources__detail">

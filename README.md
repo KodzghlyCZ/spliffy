@@ -167,6 +167,8 @@ chat:
 
 See `backend/ui_strings/README.md`. Inline `ui_strings.chat.hint` in `config.yaml` still works and overrides file values.
 
+**Runbook:** [docs/runbooks/ui-strings.md](docs/runbooks/ui-strings.md)
+
 ### UI locale + in-text citations
 
 The frontend sends the selected UI language (`spliffy-lang` in `localStorage`) with each chat request. Assistant answers can embed markdown links `[1](https://…)`; Spliffy styles them as pills and **reorders footer chips** to match the model’s numbering (see runbook prompt in [rag-citations.md](docs/runbooks/rag-citations.md)).
