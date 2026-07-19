@@ -134,6 +134,8 @@ class StreamEnricher:
             data["metadata"] = metadata
         metadata["thought"] = friendly
         metadata.pop("action", None)
+        metadata.pop("observation", None)
+        metadata.pop("output", None)
 
         inner = data.get("data")
         if isinstance(inner, dict):
@@ -141,31 +143,18 @@ class StreamEnricher:
             inner["thought"] = friendly
             inner.pop("action", None)
             inner.pop("tool_name", None)
+            inner.pop("observation", None)
+            inner.pop("output", None)
             data["data"] = inner
 
         data.pop("action", None)
         data.pop("tool_name", None)
+        data.pop("observation", None)
+        data.pop("output", None)
         if "thought" not in data:
             data["thought"] = friendly
 
         return event
-
-    def _merge_thought_labels(self, existing: str, label: str) -> str:
-        if not label.strip():
-            return existing
-        if not existing.strip():
-            return label
-        existing_lines = {
-            line.strip() for line in existing.splitlines() if line.strip()
-        }
-        new_lines = [
-            line
-            for line in label.splitlines()
-            if line.strip() and line.strip() not in existing_lines
-        ]
-        if not new_lines:
-            return existing
-        return existing.rstrip() + "\n" + "\n".join(new_lines)
 
     def _rewrite_agent_thought(self, event: dict[str, Any]) -> dict[str, Any]:
         tool = event.get("tool")
@@ -176,13 +165,10 @@ class StreamEnricher:
                 label = self._friendly_label(tool_calls)
                 if label:
                     event = dict(event)
-                    existing_thought = event.get("thought")
-                    if isinstance(existing_thought, str) and existing_thought.strip():
-                        event["thought"] = self._merge_thought_labels(existing_thought, label)
-                    else:
-                        event["thought"] = label
+                    event["thought"] = label
                     event["tool"] = ""
                     event["tool_input"] = ""
+                    event["observation"] = ""
                     return event
 
         if not tool:

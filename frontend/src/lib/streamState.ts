@@ -169,6 +169,49 @@ function shouldIncludeStepText(
   return true
 }
 
+const TOOL_STATUS_PREFIXES = [
+  'Hledám v dokumentech',
+  'Ověřuji legislativu',
+  'Používám ',
+  'Using ',
+  'Searching',
+  'Verifying',
+]
+
+function isToolStatusLine(text: string): boolean {
+  const line = text.trim()
+  if (!line) {
+    return false
+  }
+  if (TOOL_STATUS_PREFIXES.some((prefix) => line.startsWith(prefix))) {
+    return true
+  }
+  if (line.length > 140 || line.includes('**') || /^[-*]\s/.test(line)) {
+    return false
+  }
+  return line.length <= 100
+}
+
+function isToolStatusLabel(text: string): boolean {
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  if (lines.length === 0) {
+    return false
+  }
+  return lines.every(isToolStatusLine)
+}
+
+function filterThinkingItems(items: ThinkingItem[]): ThinkingItem[] {
+  return items.filter((item) => {
+    if (item.kind === 'observation' || item.kind === 'tool') {
+      return false
+    }
+    return item.kind !== 'thought' || isToolStatusLabel(item.text)
+  })
+}
+
 function stripAnswerFromThinking(message: Message): Message {
   const content = message.content
   const items = message.items.filter((item) => {
@@ -201,7 +244,7 @@ function expandThinkingItems(items: ThinkingItem[]): ThinkingItem[] {
       .map((line) => line.trim())
       .filter(Boolean)
 
-    if (lines.length <= 1) {
+    if (lines.length <= 1 || !lines.every(isToolStatusLine)) {
       expanded.push(item)
       continue
     }
@@ -300,8 +343,11 @@ function dedupeReasoningAgainstItems(reasoning: string, items: ThinkingItem[]): 
 }
 
 function finalizeThinkingDisplay(message: Message): Message {
-  const items = dedupeThinkingItems(message.items)
-  const reasoning = dedupeReasoningAgainstItems(message.reasoning, items)
+  let items = dedupeThinkingItems(filterThinkingItems(message.items))
+  let reasoning = dedupeReasoningAgainstItems(message.reasoning, items)
+  if (items.length > 0 && items.every((item) => isToolStatusLabel(item.text))) {
+    reasoning = ''
+  }
   return stripAnswerFromThinking({ ...message, items, reasoning })
 }
 
@@ -367,13 +413,7 @@ function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
   }
 
   if (observation) {
-    return {
-      id: log.id,
-      kind: 'observation',
-      label,
-      text: observation,
-      status: log.status === 'running' ? 'running' : 'done',
-    }
+    return null
   }
 
   if (labelLower.includes('thought') || labelLower.includes('thinking')) {
@@ -606,16 +646,6 @@ function syncAgentStepItems(
         text: step.tool,
         detail: step.toolInput,
         status: step.observation ? 'done' : step.status,
-      })
-    }
-
-    if (shouldIncludeStepText(step.observation, step, content)) {
-      nextItems = upsertThinkingItem(nextItems, {
-        id: `${step.id}-observation`,
-        kind: 'observation',
-        label: step.tool,
-        text: step.observation!,
-        status: 'done',
       })
     }
   }

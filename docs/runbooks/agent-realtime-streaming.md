@@ -206,6 +206,8 @@ Use this after deploy or when debugging missing realtime UI.
 
 **Fix:** Backend strips `thought` / `observation` on tool-less `agent_thought` events and on final `agent_log` rounds. Frontend drops thinking items / reasoning that overlap the streamed answer (or match final-answer prose heuristics before the bubble finishes streaming).
 
+**Mangled ↳ lines / answer fragments:** Tool `observation` fields and model prose were rendered as multiline `↳` items. Spliffy now shows **only friendly tool status lines** (e.g. “Hledám v dokumentech”, “Ověřuji legislativu”) — observations are stripped server-side and filtered client-side; multiline splitting applies only to status labels, not prose.
+
 **If duplicates persist:** Inspect the last `agent_thought` / `agent_log` SSE payload — note which field carries the answer. Check that Spliffy backend is running with the updated `stream_enricher.py`.
 
 ### No thought/tool UI at all

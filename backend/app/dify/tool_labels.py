@@ -6,6 +6,18 @@ import json
 import re
 from typing import Any
 
+_MAX_LABEL_ARG_LEN = 120
+
+
+def _truncate_display_value(value: str, max_len: int = _MAX_LABEL_ARG_LEN) -> str:
+    text = value.strip()
+    if len(text) <= max_len:
+        return text
+    cut = text[:max_len]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(".,;:") + "…"
+
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 
 # Preferred argument keys per placeholder / tool (first match wins).
@@ -108,6 +120,8 @@ def format_tool_label(
         value = _first_string_arg(args, aliases)
         if not value and key in {"query", "passage", "question"}:
             value = _fallback_string_arg(args)
+        if value and key in {"query", "question", "passage"}:
+            value = _truncate_display_value(value)
         # Optional display fields stay empty so templates can combine cleanly in config.
         if not value and key in {"reference", "paragraph", "passage"}:
             return ""
