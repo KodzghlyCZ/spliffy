@@ -124,7 +124,7 @@ Citations arrive on **`message_end`**, not a separate `retriever_resources` even
 | `frontend/src/lib/chat.ts` | `DifyRetrieverResource`, `metadata` on `DifyStreamEvent` |
 | `frontend/src/lib/streamState.ts` | `parseRetrieverResources()`, `Message.citations` |
 | `frontend/src/components/CitationSources.tsx` | Numbered chips + external link icon |
-| `backend/app/dify/routes.py` | Passes `citations_enabled`; wraps SSE with `RagflowCitationStreamEnricher` |
+| `backend/app/dify/routes.py` | Passes `citations_enabled`; wraps SSE with `StreamEnricher` |
 | `backend/app/dify/stream_enricher.py` | Injects `retriever_resources` on `message_end` from agent_log chunks |
 | `backend/app/dify/ragflow_citations.py` | Parses RAGFlow tool responses; fetches document `meta_fields` |
 | `backend/app/dify/zpl_citations.py` | Parses `get_law_excerpt` tool JSON → citation resources |

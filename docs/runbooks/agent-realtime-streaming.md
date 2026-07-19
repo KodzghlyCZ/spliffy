@@ -23,7 +23,10 @@ Browser  →  Spliffy backend (FastAPI)  →  Dify API
 | SSE client | `frontend/src/lib/chat.ts` | Fetch stream reader + SSE chunk parser |
 | Stream state | `frontend/src/lib/streamState.ts` | Event → message state reducer |
 | Chat UI | `frontend/src/components/Chat.tsx` | Message list, composer, stream handler |
-| Thinking UI | `frontend/src/components/ThinkingPanel.tsx` | Cursor-style reasoning + tool activity |
+| `frontend/src/lib/stream/` | Event reducer, thinking display, citations (see `streamState.ts` re-exports) |
+| `frontend/src/lib/streamState.ts` | Public re-exports for stream state |
+| `backend/app/dify/thought_rewrite.py` | Friendly tool labels + final-answer stripping on SSE |
+| `backend/app/dify/stream_enricher.py` | SSE enricher: citations + delegates thought rewrite |
 | Workflow UI | `frontend/src/components/WorkflowProgress.tsx` | Node stepper for Chatflow apps |
 
 ## Dify SSE Events

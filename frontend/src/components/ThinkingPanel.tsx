@@ -9,18 +9,6 @@ type ThinkingPanelProps = {
   streaming: boolean
 }
 
-function formatDetail(detail?: string) {
-  if (!detail) {
-    return null
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(detail), null, 2)
-  } catch {
-    return detail
-  }
-}
-
 export function ThinkingPanel({ message, streaming }: ThinkingPanelProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(streaming)
@@ -93,30 +81,11 @@ export function ThinkingPanel({ message, streaming }: ThinkingPanelProps) {
           {message.items.length > 0 ? (
             <ul className="thinking-panel__items">
               {message.items.map((item) => (
-                <li key={item.id} className={`thinking-item thinking-item--${item.kind}`}>
+                <li key={item.id} className="thinking-item">
                   <span className="thinking-item__marker" aria-hidden="true">
-                    {item.kind === 'tool'
-                      ? '→'
-                      : item.kind === 'observation'
-                        ? '↳'
-                        : '·'}
+                    ·
                   </span>
-                  <div className="thinking-item__content">
-                    <span className="thinking-item__text">
-                      {item.kind === 'tool'
-                        ? t('chat.thinking.usedTool', { tool: item.text })
-                        : item.text}
-                    </span>
-                    {item.detail && item.kind !== 'observation' ? (
-                      <details className="thinking-item__details">
-                        <summary>{t('chat.thinking.details')}</summary>
-                        <pre>{formatDetail(item.detail)}</pre>
-                      </details>
-                    ) : null}
-                    {item.detail && item.kind === 'observation' ? (
-                      <p className="thinking-item__observation">{item.detail}</p>
-                    ) : null}
-                  </div>
+                  <span className="thinking-item__text">{item.text}</span>
                 </li>
               ))}
             </ul>

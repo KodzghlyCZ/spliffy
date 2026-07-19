@@ -4,18 +4,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
-from copy import deepcopy
 from typing import Any
 
 from app.dify.ragflow_citations import (
     build_retriever_resources,
     extract_chunks_from_agent_log_event,
 )
-from app.dify.tool_labels import (
-    labels_for_tool_calls,
-    parse_agent_thought_tools,
-    tool_calls_from_agent_log_data,
-)
+from app.dify.thought_rewrite import ThoughtStreamRewriter
 from app.dify.zpl_citations import (
     extract_zpl_resources_from_agent_log_event,
     extract_zpl_resources_from_agent_thought,
@@ -34,11 +29,8 @@ class StreamEnricher:
         collect_citations: bool = True,
     ):
         self._ragflow = ragflow if ragflow and ragflow.enabled else None
-        self._tool_labels = tool_labels if tool_labels and tool_labels.enabled else None
         self._collect_citations = collect_citations
-        self._locale = (locale or "cs").lower()
-        if self._locale not in {"cs", "en"}:
-            self._locale = "cs"
+        self._thought_rewriter = ThoughtStreamRewriter(tool_labels, (locale or "cs").lower())
         self._buffer = ""
         self._chunks: list[dict[str, Any]] = []
         self._dataset_id = ""
@@ -49,25 +41,8 @@ class StreamEnricher:
     def _active(self) -> bool:
         return (
             self._ragflow is not None
-            or self._tool_labels is not None
+            or self._thought_rewriter._tool_labels is not None
             or self._collect_citations
-        )
-
-    def _templates(self) -> dict[str, str]:
-        assert self._tool_labels is not None
-        return self._tool_labels.templates_for(self._locale)
-
-    def _default_template(self) -> str:
-        assert self._tool_labels is not None
-        return self._tool_labels.default_for(self._locale)
-
-    def _friendly_label(self, tool_calls: list[tuple[str, dict[str, Any]]]) -> str:
-        if not tool_calls or self._tool_labels is None:
-            return ""
-        return labels_for_tool_calls(
-            tool_calls,
-            templates=self._templates(),
-            default_template=self._default_template(),
         )
 
     def _remember_zpl_resources(self, resources: list[dict[str, Any]]) -> None:
@@ -79,106 +54,6 @@ class StreamEnricher:
                 continue
             self._seen_zpl_keys.add(key)
             self._zpl_resources.append(resource)
-
-    def _rewrite_agent_log(self, event: dict[str, Any]) -> dict[str, Any]:
-        data = event.get("data")
-        if not isinstance(data, dict):
-            return event
-
-        label = str(data.get("label") or "")
-        tool_calls = tool_calls_from_agent_log_data(data)
-
-        # Final-answer ROUND: model puts the reply in `thought` / `observation` with no tools.
-        # Strip it so the thinking panel doesn't duplicate the chat bubble.
-        if "round" in label.lower() and not tool_calls:
-            event = deepcopy(event)
-            data = event["data"]
-            assert isinstance(data, dict)
-            metadata = data.get("metadata")
-            if isinstance(metadata, dict):
-                metadata = dict(metadata)
-                metadata.pop("thought", None)
-                metadata.pop("action", None)
-                metadata.pop("observation", None)
-                metadata.pop("output", None)
-                data["metadata"] = metadata
-            inner = data.get("data")
-            if isinstance(inner, dict):
-                inner = dict(inner)
-                inner.pop("thought", None)
-                inner.pop("action", None)
-                inner.pop("text", None)
-                inner.pop("observation", None)
-                inner.pop("output", None)
-                data["data"] = inner
-            data.pop("thought", None)
-            data.pop("action", None)
-            data.pop("observation", None)
-            data.pop("output", None)
-            return event
-
-        if self._tool_labels is None or not tool_calls:
-            return event
-
-        friendly = self._friendly_label(tool_calls)
-        if not friendly:
-            return event
-
-        event = deepcopy(event)
-        data = event["data"]
-        assert isinstance(data, dict)
-
-        metadata = data.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-            data["metadata"] = metadata
-        metadata["thought"] = friendly
-        metadata.pop("action", None)
-        metadata.pop("observation", None)
-        metadata.pop("output", None)
-
-        inner = data.get("data")
-        if isinstance(inner, dict):
-            inner = dict(inner)
-            inner["thought"] = friendly
-            inner.pop("action", None)
-            inner.pop("tool_name", None)
-            inner.pop("observation", None)
-            inner.pop("output", None)
-            data["data"] = inner
-
-        data.pop("action", None)
-        data.pop("tool_name", None)
-        data.pop("observation", None)
-        data.pop("output", None)
-        if "thought" not in data:
-            data["thought"] = friendly
-
-        return event
-
-    def _rewrite_agent_thought(self, event: dict[str, Any]) -> dict[str, Any]:
-        tool = event.get("tool")
-
-        if tool and self._tool_labels is not None:
-            tool_calls = parse_agent_thought_tools(tool, event.get("tool_input"))
-            if tool_calls:
-                label = self._friendly_label(tool_calls)
-                if label:
-                    event = dict(event)
-                    event["thought"] = label
-                    event["tool"] = ""
-                    event["tool_input"] = ""
-                    event["observation"] = ""
-                    return event
-
-        if not tool:
-            # Final answer step (no tool call) — keep it in the chat bubble only.
-            event = dict(event)
-            event["thought"] = ""
-            event["observation"] = ""
-            return event
-
-        return event
 
     def _ingest_agent_log(self, event: dict[str, Any]) -> None:
         if self._collect_citations:
@@ -250,17 +125,15 @@ class StreamEnricher:
         changed = False
 
         if event_name == "agent_log":
-            # Collect citations before label rewrite (tool_responses stay intact either way).
             self._ingest_agent_log(event)
-            rewritten = self._rewrite_agent_log(event)
+            rewritten = self._thought_rewriter.rewrite_agent_log(event)
             if rewritten is not event:
                 event = rewritten
                 changed = True
 
         if event_name == "agent_thought":
-            # Collect ZPL URLs from observation before tool fields are cleared.
             self._ingest_agent_thought(event)
-            rewritten = self._rewrite_agent_thought(event)
+            rewritten = self._thought_rewriter.rewrite_agent_thought(event)
             if rewritten is not event:
                 event = rewritten
                 changed = True
@@ -323,8 +196,3 @@ class StreamEnricher:
 
         if self._buffer:
             yield self._buffer.encode()
-
-
-class RagflowCitationStreamEnricher(StreamEnricher):
-    def __init__(self, ragflow: RagflowSettings | None):
-        super().__init__(ragflow=ragflow)
