@@ -35,6 +35,7 @@
     "typing": "Assistant is typing",
     "placeholder": "Message {{name}}…",
     "send": "Send message",
+    "reset": "Reset",
     "hint": "Enter to send · Shift+Enter for a new line",
     "suggestions": "Suggested questions",
     "failed": "Chat failed",

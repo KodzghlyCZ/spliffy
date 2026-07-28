@@ -61,6 +61,8 @@ export function Chat() {
 
   const displayName = user?.name ?? user?.email ?? user?.preferred_username ?? null
   const hasUserMessages = messages.some((message) => message.role === 'user')
+  const canResetConversation =
+    messages.length > 0 || input.trim().length > 0 || error !== null || conversationId.length > 0
 
   useEffect(() => {
     fetchChatConfig()
@@ -207,6 +209,17 @@ export function Chat() {
     }
   }
 
+  function handleResetConversation() {
+    if (sending) {
+      return
+    }
+
+    setMessages([])
+    setConversationId('')
+    setInput('')
+    setError(null)
+  }
+
   return (
     <div className="chat">
       <div className="chat-thread">
@@ -318,19 +331,29 @@ export function Chat() {
               rows={1}
               disabled={sending}
             />
-            <button
-              className="chat-send"
-              type="submit"
-              disabled={sending || !input.trim()}
-              aria-label={t('chat.send')}
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                <path
-                  d="M3.4 20.6 21 12 3.4 3.4l2.8 7.2L17 12l-10.8 1.4-2.8 7.2Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </button>
+            <div className="chat-composer-actions">
+              <button
+                className="chat-reset"
+                type="button"
+                onClick={handleResetConversation}
+                disabled={sending || !canResetConversation}
+              >
+                {t('chat.reset')}
+              </button>
+              <button
+                className="chat-send"
+                type="submit"
+                disabled={sending || !input.trim()}
+                aria-label={t('chat.send')}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path
+                    d="M3.4 20.6 21 12 3.4 3.4l2.8 7.2L17 12l-10.8 1.4-2.8 7.2Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+            </div>
           </form>
           <p className="chat-hint">{chatHint ?? t('chat.hint')}</p>
         </div>

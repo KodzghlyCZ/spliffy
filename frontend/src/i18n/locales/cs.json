@@ -35,6 +35,7 @@
     "typing": "Asistent píše",
     "placeholder": "Napsat {{name}}…",
     "send": "Odeslat zprávu",
+    "reset": "Resetovat",
     "hint": "Enter pro odeslání · Shift+Enter pro nový řádek",
     "suggestions": "Navrhované otázky",
     "failed": "Chat selhal",
