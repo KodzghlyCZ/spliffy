@@ -266,18 +266,28 @@ async def build_retriever_resources(
                 client=client,
             )
 
+            display_name = (
+                ragflow_meta.get("title")
+                or chunk.get("document_keyword")
+                or document_id
+            )
+            if isinstance(display_name, str):
+                display_name = display_name.strip()
+            else:
+                display_name = document_name
+
             resources.append(
                 {
                     "position": position,
                     "dataset_id": chunk_dataset_id,
                     "dataset_name": dataset_name,
                     "document_id": document_id,
-                    "document_name": document_name,
+                    "document_name": display_name,
                     "data_source_type": "external",
                     "segment_id": str(chunk.get("id") or ""),
                     "retriever_from": "ragflow_plugin",
                     "score": score,
-                    "title": document_name,
+                    "title": display_name,
                     "content": _truncate_content(content),
                     "doc_metadata": _build_doc_metadata(
                         chunk,

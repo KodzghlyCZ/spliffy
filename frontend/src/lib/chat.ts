@@ -58,6 +58,7 @@ export type DifyRetrieverResource = {
   dataset_name?: string
   document_id?: string
   document_name?: string
+  title?: string
   data_source_type?: string
   segment_id?: string
   score?: number

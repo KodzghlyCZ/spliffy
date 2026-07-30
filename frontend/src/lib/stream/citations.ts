@@ -15,6 +15,90 @@ function pickCitationUrl(meta: Record<string, unknown> | undefined): string | un
   return undefined
 }
 
+function looksLikeUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim())
+}
+
+/** Turn a bare URL into a short human-readable chip label. */
+export function formatUrlAsTitle(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.replace(/^www\./, '')
+
+    const zplMatch = parsed.pathname.match(/^\/cs\/(\d{4})-(\d+)/i)
+    if (zplMatch && host.includes('zakonyprolidi.cz')) {
+      const [, year, number] = zplMatch
+      return `${number}/${year} Sb.`
+    }
+
+    const eduJobMatch = parsed.pathname.match(/^\/job\/([^/]+)/i)
+    if (eduJobMatch && host.includes('edu.gov.cz')) {
+      return eduJobMatch[1].replace(/-/g, ' ')
+    }
+
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const last = segments.at(-1)
+    if (last) {
+      const decoded = decodeURIComponent(last)
+      if (!decoded.includes('.') || decoded.endsWith('.html') || decoded.endsWith('.htm')) {
+        const slug = decoded.replace(/\.(html?|md|pdf)$/i, '').replace(/-/g, ' ').trim()
+        if (slug.length > 2) {
+          return slug
+        }
+      }
+    }
+
+    return host
+  } catch {
+    return url
+  }
+}
+
+function prettifyDocumentName(name: string): string {
+  const trimmed = name.trim()
+  if (looksLikeUrl(trimmed)) {
+    return formatUrlAsTitle(trimmed)
+  }
+
+  const withoutExt = trimmed.replace(/\.(md|txt|pdf|html?)$/i, '')
+  const withoutJobPrefix = withoutExt.replace(/^job--/, '')
+  if (withoutJobPrefix !== withoutExt) {
+    return withoutJobPrefix.replace(/-/g, ' ').trim()
+  }
+
+  return withoutExt
+}
+
+function pickCitationTitle(
+  resource: DifyRetrieverResource,
+  url: string | undefined,
+  position: number,
+): string {
+  const meta = resource.doc_metadata
+  const candidates = [
+    meta && pickString(meta.title),
+    pickString(resource.title),
+    pickString(resource.document_name),
+    pickString(resource.dataset_name),
+  ]
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue
+    }
+    if (looksLikeUrl(candidate)) {
+      return formatUrlAsTitle(candidate)
+    }
+    return prettifyDocumentName(candidate)
+  }
+
+  if (url) {
+    return formatUrlAsTitle(url)
+  }
+
+  return `Source ${position}`
+}
+
 function citationUrlsMatch(a: string | undefined, b: string | undefined): boolean {
   if (!a || !b) {
     return false
@@ -24,12 +108,30 @@ function citationUrlsMatch(a: string | undefined, b: string | undefined): boolea
     const right = new URL(b)
     return (
       left.origin === right.origin &&
-      left.pathname.replace(/\/$/, '') === right.pathname.replace(/\/$/, '') &&
-      left.hash === right.hash
+      left.pathname.replace(/\/$/, '') === right.pathname.replace(/\/$/, '')
     )
   } catch {
     return a === b
   }
+}
+
+function preferInlineUrl(resourceUrl: string | undefined, inlineUrl: string | undefined): string | undefined {
+  if (!inlineUrl) {
+    return resourceUrl
+  }
+  if (!resourceUrl) {
+    return inlineUrl
+  }
+  try {
+    const inline = new URL(inlineUrl)
+    const resource = new URL(resourceUrl)
+    if (inline.hash && !resource.hash) {
+      return inlineUrl
+    }
+  } catch {
+    // fall through
+  }
+  return resourceUrl
 }
 
 export function parseRetrieverResources(
@@ -44,11 +146,8 @@ export function parseRetrieverResources(
 
   for (const resource of resources) {
     const position = typeof resource.position === 'number' ? resource.position : citations.length + 1
-    const title =
-      pickString(resource.document_name) ??
-      pickString(resource.dataset_name) ??
-      `Source ${position}`
     const url = pickCitationUrl(resource.doc_metadata)
+    const title = pickCitationTitle(resource, url, position)
     const dedupeKey = `${url ?? ''}|${title}|${resource.segment_id ?? ''}`
     if (seen.has(dedupeKey)) {
       continue
@@ -105,9 +204,13 @@ export function alignCitationsToContent(
 
     if (matched) {
       used.add(matched)
-      aligned.push({ ...matched, position })
+      aligned.push({
+        ...matched,
+        position,
+        url: preferInlineUrl(matched.url, inlineUrl),
+      })
     } else if (inlineUrl) {
-      aligned.push({ position, title: inlineUrl, url: inlineUrl })
+      aligned.push({ position, title: formatUrlAsTitle(inlineUrl), url: inlineUrl })
     }
   }
 
