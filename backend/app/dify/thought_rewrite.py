@@ -14,20 +14,6 @@ from app.dify.tool_labels import (
 from app.settings import ToolLabelSettings
 
 _ANSWER_FIELD_KEYS = ("thought", "action", "observation", "output", "text", "tool_name")
-_OBSERVATION_PREVIEW_CHARS = 600
-
-
-def _truncate(text: str, n: int = _OBSERVATION_PREVIEW_CHARS) -> str:
-    value = (text or "").strip()
-    if len(value) <= n:
-        return value
-    if n <= 1:
-        return "…"
-    cut = value[: n - 1].rstrip()
-    space = cut.rfind(" ")
-    if space >= n // 2:
-        cut = cut[:space].rstrip()
-    return cut + "…"
 
 
 def _pop_fields(target: dict[str, Any], *keys: str) -> None:
@@ -46,7 +32,8 @@ def _as_text(value: Any) -> str:
         return value
     if isinstance(value, (dict, list)):
         try:
-            return json.dumps(value, ensure_ascii=False)
+            dumped = json.dumps(value, ensure_ascii=False, indent=2)
+            return f"```json\n{dumped}\n```"
         except Exception:
             return str(value)
     return str(value)
@@ -84,7 +71,7 @@ def _tool_response_texts(source: Any) -> list[str]:
     return texts
 
 
-def _extract_observation_preview(*sources: Any) -> str:
+def _extract_observation(*sources: Any) -> str:
     """Prefer observation/output text; fall back to tool_responses[].tool_response."""
     for source in sources:
         if not isinstance(source, dict):
@@ -94,17 +81,17 @@ def _extract_observation_preview(*sources: Any) -> str:
             if isinstance(raw, dict):
                 nested = _tool_response_texts(raw)
                 if nested:
-                    return _truncate("\n\n".join(nested))
+                    return "\n\n".join(nested)
                 continue
             text = _as_text(raw).strip()
             if text:
-                return _truncate(text)
+                return text
 
     collected: list[str] = []
     for source in sources:
         collected.extend(_tool_response_texts(source))
     if collected:
-        return _truncate("\n\n".join(collected))
+        return "\n\n".join(collected)
     return ""
 
 
@@ -136,14 +123,14 @@ def strip_final_agent_log_round(data: dict[str, Any]) -> None:
 
 
 def apply_friendly_tool_label(data: dict[str, Any], friendly: str) -> None:
-    """Replace tool-call metadata with a friendly status label; keep a short observation preview."""
+    """Replace tool-call metadata with a friendly status label; keep the full observation."""
     metadata = data.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
         data["metadata"] = metadata
 
     inner = data.get("data") if isinstance(data.get("data"), dict) else None
-    preview = _extract_observation_preview(metadata, inner or {}, data)
+    preview = _extract_observation(metadata, inner or {}, data)
 
     metadata["thought"] = friendly
     _pop_fields(metadata, "action", "output")
@@ -226,7 +213,7 @@ class ThoughtStreamRewriter:
             if tool_calls:
                 label = self.friendly_label(tool_calls)
                 if label:
-                    preview = _extract_observation_preview(event)
+                    preview = _extract_observation(event)
                     return {
                         **event,
                         "thought": label,
@@ -243,7 +230,7 @@ class ThoughtStreamRewriter:
             return {
                 **event,
                 "thought": thought,
-                "observation": _truncate(observation) if observation else "",
+                "observation": observation,
             }
 
         return event

@@ -25,7 +25,7 @@ Browser  →  Spliffy backend (FastAPI)  →  Dify API
 | Chat UI | `frontend/src/components/Chat.tsx` | Message list, composer, stream handler |
 | `frontend/src/lib/stream/` | Event reducer, thinking display, citations (see `streamState.ts` re-exports) |
 | `frontend/src/lib/streamState.ts` | Public re-exports for stream state |
-| `backend/app/dify/thought_rewrite.py` | Friendly tool labels, truncated tool observations, final-answer stripping |
+| `backend/app/dify/thought_rewrite.py` | Friendly tool labels, full tool observations, final-answer stripping |
 | `backend/app/dify/stream_enricher.py` | SSE enricher: citations + delegates thought rewrite |
 | Workflow UI | `frontend/src/components/WorkflowProgress.tsx` | Node stepper for Chatflow apps |
 
@@ -111,7 +111,7 @@ The thinking UI is designed to feel like Cursor's inline reasoning display:
 
 1. **Left accent bar** with a compact header ("Thinking" while tools run, "Thought process" / "Postup" once the answer starts).
 2. **Streaming prose** — `reasoning_chunk` text appears as muted narrative with a blinking cursor.
-3. **Tool rows** — friendly `tool_labels` plus a truncated observation preview (~600 chars) under each `sofie_sub_*` / tool call.
+3. **Tool rows** — friendly `tool_labels` plus the full subagent/tool observation, rendered as markdown, under each `sofie_sub_*` / tool call.
 4. **Auto-expand** while streaming and the answer is still empty.
 5. **Animate-collapse** when the first answer character arrives; the header stays clickable to re-expand.
 6. **Auto-scroll** — the thinking body scrolls as new content arrives.
@@ -209,7 +209,7 @@ Use this after deploy or when debugging missing realtime UI.
 
 **Fix:** Backend strips `thought` / `observation` on tool-less `agent_thought` events and on final `agent_log` rounds. Frontend drops thinking items / reasoning that overlap the streamed answer (or match final-answer prose heuristics before the bubble finishes streaming).
 
-**Mangled ↳ lines / answer fragments:** Final-answer prose in `thought` / `observation` is still stripped (server heuristic + client overlap filter). **Tool** observations are kept as a truncated preview under the friendly status line — they are not dropped. Multiline splitting still applies only to status labels, not observation text.
+**Mangled ↳ lines / answer fragments:** Final-answer prose in `thought` / `observation` is still stripped when it is the parent agent's reply (server heuristic + client overlap with the answer bubble). **Tool** observations keep the full subagent/tool output and render as markdown under the friendly status line.
 
 **If duplicates persist:** Inspect the last `agent_thought` / `agent_log` SSE payload — note which field carries the answer. Check that Spliffy backend is running with the updated `stream_enricher.py`.
 

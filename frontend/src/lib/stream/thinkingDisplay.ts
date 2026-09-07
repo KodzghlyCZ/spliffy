@@ -107,19 +107,19 @@ function isAnswerLike(text: string | undefined, content: string): boolean {
 }
 
 function sanitizeThinkingItem(item: ThinkingItem, content: string): ThinkingItem {
-  if (!item.detail || !isAnswerLike(item.detail, content)) {
+  if (!item.detail || !textOverlapsAnswer(item.detail, content)) {
     return item
   }
   return { ...item, detail: undefined }
 }
 
 function shouldKeepThinkingItem(item: ThinkingItem, content: string): boolean {
-  if (isAnswerLike(item.text, content)) {
-    return false
+  if (item.kind === 'observation') {
+    return Boolean(item.text.trim()) && !textOverlapsAnswer(item.text, content)
   }
 
-  if (item.kind === 'observation') {
-    return !isLikelyFinalAnswerProse(item.text)
+  if (isAnswerLike(item.text, content)) {
+    return false
   }
 
   if (item.kind === 'tool') {

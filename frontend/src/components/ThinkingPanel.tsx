@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Message, ThinkingItem } from '../lib/streamState'
 import { hasThinkingActivity, thinkingItemCount } from '../lib/streamState'
+import { MessageContent } from './MessageContent'
 import './ThinkingPanel.css'
 
 type ThinkingPanelProps = {
@@ -9,9 +10,9 @@ type ThinkingPanelProps = {
   streaming: boolean
 }
 
-function observationText(item: ThinkingItem): string | undefined {
+function observationMarkdown(item: ThinkingItem): string | undefined {
   if (item.kind === 'observation') {
-    return undefined
+    return item.text.trim() || undefined
   }
   return item.detail?.trim() || undefined
 }
@@ -85,8 +86,9 @@ export function ThinkingPanel({ message, streaming }: ThinkingPanelProps) {
             {message.items.length > 0 ? (
               <ul className="thinking-panel__items">
                 {message.items.map((item) => {
-                  const preview = observationText(item)
-                  const isToolRow = item.kind === 'tool' || Boolean(preview)
+                  const body = observationMarkdown(item)
+                  const isToolRow = item.kind === 'tool' || item.kind === 'observation' || Boolean(body)
+                  const showLabel = item.kind !== 'observation'
 
                   return (
                     <li
@@ -97,9 +99,11 @@ export function ThinkingPanel({ message, streaming }: ThinkingPanelProps) {
                         ·
                       </span>
                       <div className="thinking-item__content">
-                        <span className="thinking-item__text">{item.text}</span>
-                        {preview ? (
-                          <p className="thinking-item__observation">{preview}</p>
+                        {showLabel ? <span className="thinking-item__text">{item.text}</span> : null}
+                        {body ? (
+                          <div className="thinking-item__observation">
+                            <MessageContent content={body} markdown />
+                          </div>
                         ) : null}
                       </div>
                     </li>
