@@ -1,6 +1,6 @@
 import type { DifyStreamEvent } from '../chat'
 import type { AgentStep, ThinkingItem, WorkflowNode } from './types'
-import { pickString } from './textUtils'
+import { pickString, unwrapObservationText } from './textUtils'
 import { shouldIncludeStepThought } from './thinkingDisplay'
 
 export function upsertThinkingItem(items: ThinkingItem[], item: ThinkingItem): ThinkingItem[] {
@@ -44,9 +44,10 @@ function pickObservation(
   payload: Record<string, unknown>,
 ): string | undefined {
   return (
-    pickString(metadata.observation) ??
-    pickString(payload.observation) ??
-    pickString(payload.output)
+    unwrapObservationText(metadata.observation) ??
+    unwrapObservationText(payload.observation) ??
+    unwrapObservationText(payload.output) ??
+    unwrapObservationText(payload.text)
   )
 }
 
@@ -123,7 +124,7 @@ export function upsertAgentStep(steps: AgentStep[], event: DifyStreamEvent): Age
     thought: event.thought ?? existing?.thought,
     tool: event.tool ?? existing?.tool,
     toolInput: event.tool_input ?? existing?.toolInput,
-    observation: event.observation ?? existing?.observation,
+    observation: unwrapObservationText(event.observation) ?? existing?.observation,
     status: event.observation || event.tool ? 'done' : 'running',
   }
 

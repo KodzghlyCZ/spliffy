@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Message, ThinkingItem } from '../lib/streamState'
 import { hasThinkingActivity, thinkingItemCount } from '../lib/streamState'
+import { unwrapObservationText } from '../lib/stream/textUtils'
 import { MessageContent } from './MessageContent'
 import './ThinkingPanel.css'
 
@@ -12,9 +13,9 @@ type ThinkingPanelProps = {
 
 function observationMarkdown(item: ThinkingItem): string | undefined {
   if (item.kind === 'observation') {
-    return item.text.trim() || undefined
+    return unwrapObservationText(item.text)
   }
-  return item.detail?.trim() || undefined
+  return unwrapObservationText(item.detail)
 }
 
 export function ThinkingPanel({ message, streaming }: ThinkingPanelProps) {

@@ -14,6 +14,19 @@ from app.dify.tool_labels import (
 from app.settings import ToolLabelSettings
 
 _ANSWER_FIELD_KEYS = ("thought", "action", "observation", "output", "text", "tool_name")
+_TEXT_KEYS = (
+    "text",
+    "content",
+    "markdown",
+    "observation",
+    "output",
+    "result",
+    "answer",
+    "message",
+    "response",
+    "tool_response",
+)
+_TOOL_RESPONSE_PREFIX = "tool response: "
 
 
 def _pop_fields(target: dict[str, Any], *keys: str) -> None:
@@ -39,59 +52,102 @@ def _as_text(value: Any) -> str:
     return str(value)
 
 
-def _tool_response_texts(source: Any) -> list[str]:
-    texts: list[str] = []
-    if not isinstance(source, dict):
-        return texts
+def _parse_json_value(text: str) -> Any:
+    stripped = text.strip()
+    if not stripped or stripped[0] not in "{[":
+        return None
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+    try:
+        payload, _ = json.JSONDecoder().raw_decode(stripped)
+    except json.JSONDecodeError:
+        return None
+    return payload
 
-    candidates: list[Any] = [source]
-    inner = source.get("data")
-    if isinstance(inner, dict):
-        candidates.append(inner)
-        output = inner.get("output")
-        if isinstance(output, dict):
-            candidates.append(output)
-    output = source.get("output")
-    if isinstance(output, dict):
-        candidates.append(output)
 
-    for candidate in candidates:
-        if not isinstance(candidate, dict):
-            continue
-        tool_responses = candidate.get("tool_responses")
-        if not isinstance(tool_responses, list):
-            continue
-        for item in tool_responses:
-            if not isinstance(item, dict):
+def _strip_outer_rules(text: str) -> str:
+    lines = text.strip().splitlines()
+    if lines and set(lines[0].strip()) <= {"-"} and len(lines[0].strip()) >= 3:
+        lines = lines[1:]
+    if lines and set(lines[-1].strip()) <= {"-"} and len(lines[-1].strip()) >= 3:
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+def _normalize_observation_text(text: str) -> str:
+    value = text.strip()
+    if value.lower().startswith(_TOOL_RESPONSE_PREFIX):
+        value = value[len(_TOOL_RESPONSE_PREFIX) :].strip()
+    if "\\n" in value and value.count("\n") <= 1:
+        value = value.replace("\\n", "\n").replace("\\t", "\t")
+    return _strip_outer_rules(value)
+
+
+def _unwrap_observation(value: Any, depth: int = 0) -> str:
+    """Pull markdown/text out of Dify JSON wrappers like {\"text\": \"## ...\"}."""
+    if depth > 6 or value is None:
+        return ""
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return ""
+        parsed = _parse_json_value(text)
+        if isinstance(parsed, (dict, list)):
+            inner = _unwrap_observation(parsed, depth + 1)
+            if inner:
+                return inner
+        return _normalize_observation_text(text)
+
+    if isinstance(value, list):
+        parts = [_unwrap_observation(item, depth + 1) for item in value]
+        return "\n\n".join(part for part in parts if part)
+
+    if isinstance(value, dict):
+        tool_responses = value.get("tool_responses")
+        if isinstance(tool_responses, list):
+            parts = [
+                _unwrap_observation(
+                    item.get("tool_response") if isinstance(item, dict) else item,
+                    depth + 1,
+                )
+                for item in tool_responses
+            ]
+            joined = "\n\n".join(part for part in parts if part)
+            if joined:
+                return joined
+
+        for key in _TEXT_KEYS:
+            if key not in value:
                 continue
-            response = item.get("tool_response")
-            text = _as_text(response).strip()
-            if text:
-                texts.append(text)
-    return texts
+            inner = _unwrap_observation(value.get(key), depth + 1)
+            if inner:
+                return inner
+
+        nested = value.get("data")
+        if isinstance(nested, dict):
+            inner = _unwrap_observation(nested, depth + 1)
+            if inner:
+                return inner
+        return ""
+
+    return _normalize_observation_text(str(value))
 
 
 def _extract_observation(*sources: Any) -> str:
-    """Prefer observation/output text; fall back to tool_responses[].tool_response."""
+    """Prefer observation/output text; fall back to nested tool_response payloads."""
     for source in sources:
         if not isinstance(source, dict):
             continue
-        for key in ("observation", "output"):
-            raw = source.get(key)
-            if isinstance(raw, dict):
-                nested = _tool_response_texts(raw)
-                if nested:
-                    return "\n\n".join(nested)
-                continue
-            text = _as_text(raw).strip()
+        for key in ("observation", "output", "text"):
+            text = _unwrap_observation(source.get(key))
             if text:
                 return text
-
-    collected: list[str] = []
-    for source in sources:
-        collected.extend(_tool_response_texts(source))
-    if collected:
-        return "\n\n".join(collected)
+        text = _unwrap_observation(source)
+        if text:
+            return text
     return ""
 
 
@@ -224,7 +280,7 @@ class ThoughtStreamRewriter:
 
         if not tool:
             thought = _as_text(event.get("thought")).strip()
-            observation = _as_text(event.get("observation")).strip()
+            observation = _unwrap_observation(event.get("observation"))
             if _is_final_answer_prose(thought) or _is_final_answer_prose(observation):
                 return {**event, "thought": "", "observation": ""}
             return {
