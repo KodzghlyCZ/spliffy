@@ -1,6 +1,7 @@
 import type { Components } from 'react-markdown'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { sanitizeCitationUrl } from '../lib/stream/citations'
 import './MessageContent.css'
 
 type MessageContentProps = {
@@ -12,9 +13,13 @@ const markdownComponents: Components = {
   a: ({ href, children }) => {
     const label = String(children ?? '')
     const isCitationRef = /^\[?\d+\]?$/.test(label.trim())
+    const cleanHref = sanitizeCitationUrl(href)
+    if (!cleanHref) {
+      return <span>{children}</span>
+    }
     return (
       <a
-        href={href}
+        href={cleanHref}
         target="_blank"
         rel="noopener noreferrer"
         className={isCitationRef ? 'citation-ref' : undefined}

@@ -8,6 +8,8 @@ from typing import Any
 
 import httpx
 
+from app.dify.citation_urls import sanitize_citation_url
+
 _TOOL_RESPONSE_PREFIX = "tool response: "
 _RETRIEVAL_TOOL_NAMES = frozenset({"retrieval"})
 _SOURCE_URL_RE = re.compile(r'^source_url:\s*["\']?([^"\'\s]+)', re.MULTILINE)
@@ -66,10 +68,10 @@ def _extract_url_from_content(content: str) -> str | None:
         return None
     match = _SOURCE_URL_RE.search(content)
     if match:
-        return match.group(1).strip()
+        return sanitize_citation_url(match.group(1).strip())
     match = _EDU_JOB_URL_RE.search(content)
     if match:
-        return match.group(0).strip()
+        return sanitize_citation_url(match.group(0).strip())
     return None
 
 
@@ -209,6 +211,8 @@ def _build_doc_metadata(
         or ragflow_meta.get("link")
         or _extract_url_from_content(content)
     )
+    if isinstance(url, str):
+        url = sanitize_citation_url(url)
 
     metadata: dict[str, Any] = {
         "dataset_id": chunk.get("dataset_id") or dataset_id,

@@ -9,10 +9,56 @@ function pickCitationUrl(meta: Record<string, unknown> | undefined): string | un
   for (const key of ['url', 'source_url', 'file_url', 'link']) {
     const value = pickString(meta[key])
     if (value?.startsWith('http')) {
-      return value
+      const clean = sanitizeCitationUrl(value)
+      if (clean) {
+        return clean
+      }
     }
   }
   return undefined
+}
+
+const PLACEHOLDER_URL = /###|\{[a-z0-9_]+\}|%s|%d|\bn\/n\b/i
+const ZPL_PATH = /^\/cs\/(\d{4})-(\d{1,5})(?:\/(.*))?$/i
+const ZPL_ZNENI = /^zneni-\d{8}$/i
+const ZPL_FRAGMENT = /^f\d+$/i
+
+/** Rewrite invented ZPL tails (`/n/n###`, `/n-`) to the real law page; drop irreparable URLs. */
+export function sanitizeCitationUrl(url: string | undefined): string | undefined {
+  if (!url?.trim()) {
+    return undefined
+  }
+
+  const trimmed = url.trim().replace(/[.,);]+$/g, '')
+  try {
+    const parsed = new URL(trimmed)
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase()
+    if (host === 'zakonyprolidi.cz') {
+      return sanitizeZplUrl(parsed)
+    }
+    if (PLACEHOLDER_URL.test(trimmed)) {
+      return undefined
+    }
+    return parsed.href
+  } catch {
+    return undefined
+  }
+}
+
+function sanitizeZplUrl(parsed: URL): string | undefined {
+  const match = parsed.pathname.match(ZPL_PATH)
+  if (!match) {
+    return undefined
+  }
+
+  const year = match[1]
+  const number = match[2]
+  const rest = match[3] ?? ''
+  const firstSegment = rest.split('/')[0] ?? ''
+  const extra = ZPL_ZNENI.test(firstSegment) ? `/${firstSegment}` : ''
+  const fragment = parsed.hash.replace(/^#/, '')
+  const suffix = ZPL_FRAGMENT.test(fragment) ? `#${fragment}` : ''
+  return `https://www.zakonyprolidi.cz/cs/${year}-${number}${extra}${suffix}`
 }
 
 function looksLikeUrl(value: string): boolean {
@@ -182,8 +228,8 @@ export function alignCitationsToContent(
 
   while ((match = inlinePattern.exec(content)) !== null) {
     const position = Number(match[1])
-    const url = match[2]
-    if (Number.isFinite(position) && position > 0 && !inlineByNumber.has(position)) {
+    const url = sanitizeCitationUrl(match[2])
+    if (Number.isFinite(position) && position > 0 && url && !inlineByNumber.has(position)) {
       inlineByNumber.set(position, url)
     }
   }
@@ -238,7 +284,10 @@ export function splitCitationsByContent(
   let match: RegExpExecArray | null
 
   while ((match = inlinePattern.exec(content)) !== null) {
-    inlineUrls.push(match[2])
+    const url = sanitizeCitationUrl(match[2])
+    if (url) {
+      inlineUrls.push(url)
+    }
   }
 
   if (inlineUrls.length === 0) {

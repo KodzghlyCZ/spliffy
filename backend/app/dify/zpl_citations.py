@@ -6,6 +6,8 @@ import json
 import re
 from typing import Any
 
+from app.dify.citation_urls import sanitize_citation_url
+
 _TOOL_RESPONSE_PREFIX = "tool response: "
 _ZPL_TOOL_NAMES = frozenset({"get_law_excerpt"})
 _ZPL_URL_RE = re.compile(
@@ -114,7 +116,9 @@ def parse_zpl_payload(tool_response: Any) -> dict[str, Any] | None:
         if payload is None:
             match = _ZPL_URL_RE.search(tool_response)
             if match:
-                return {"ok": True, "url": match.group(0).rstrip(".,);]")}
+                clean = sanitize_citation_url(match.group(0))
+                if clean:
+                    return {"ok": True, "url": clean}
             return None
     else:
         return None
@@ -152,7 +156,9 @@ def parse_zpl_payload(tool_response: Any) -> dict[str, Any] | None:
         if isinstance(tool_response, str):
             match = _ZPL_URL_RE.search(tool_response)
             if match:
-                payload = {**payload, "url": match.group(0).rstrip(".,);]")}
+                clean = sanitize_citation_url(match.group(0))
+                if clean:
+                    payload = {**payload, "url": clean}
     return payload
 
 
@@ -203,12 +209,16 @@ def _url_from_payload(payload: dict[str, Any]) -> str | None:
         for key in ("url", "source_url", "link"):
             value = section_meta.get(key)
             if isinstance(value, str) and value.startswith("http"):
-                return value.strip()
+                clean = sanitize_citation_url(value)
+                if clean:
+                    return clean
 
     for key in ("url", "source_url", "link"):
         value = payload.get(key)
         if isinstance(value, str) and value.startswith("http"):
-            return value.strip()
+            clean = sanitize_citation_url(value)
+            if clean:
+                return clean
 
     text = payload.get("excerpt")
     if not isinstance(text, str):
@@ -216,7 +226,7 @@ def _url_from_payload(payload: dict[str, Any]) -> str | None:
     if isinstance(text, str):
         match = _ZPL_URL_RE.search(text)
         if match:
-            return match.group(0).rstrip(".,);]")
+            return sanitize_citation_url(match.group(0))
     return None
 
 
@@ -340,6 +350,13 @@ def merge_citation_resources(
             meta = resource.get("doc_metadata") if isinstance(resource.get("doc_metadata"), dict) else {}
             document_id = str(resource.get("document_id") or "")
             url = str(meta.get("url") or meta.get("source_url") or "")
+            clean = sanitize_citation_url(url)
+            if url.startswith("http") and not clean:
+                continue
+            if clean:
+                meta = {**meta, "url": clean, "source_url": clean}
+                resource = {**resource, "doc_metadata": meta}
+                url = clean
             # Prefer document_id so multiple paragraphs of the same law stay distinct.
             key = document_id or url
             if not key or key in seen:

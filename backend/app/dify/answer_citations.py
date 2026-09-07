@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.dify.citation_urls import sanitize_citation_url
+
 _INLINE_CITE_RE = re.compile(r"\[(\d+)\]\((https?://[^)\s]+)\)")
 _BARE_URL_RE = re.compile(
     r"https?://(?:www\.)?(?:zakonyprolidi\.cz|edu\.gov\.cz|csicr\.cz|edu-gov-cz\.myskin\.catania-service\.cz)[^\s\]\)\"'<>]*",
@@ -39,13 +41,16 @@ def _title_from_url(url: str) -> str:
     return url.split("/")[2] if "://" in url else url
 
 
-def resource_from_url(url: str, *, position: int = 1, content: str = "") -> dict[str, Any]:
-    title = _title_from_url(url)
+def resource_from_url(url: str, *, position: int = 1, content: str = "") -> dict[str, Any] | None:
+    clean = sanitize_citation_url(url)
+    if not clean:
+        return None
+    title = _title_from_url(clean)
     return {
         "position": position,
         "dataset_id": "",
         "dataset_name": "inline",
-        "document_id": f"inline:{url}",
+        "document_id": f"inline:{clean}",
         "document_name": title,
         "data_source_type": "external",
         "segment_id": "",
@@ -53,7 +58,7 @@ def resource_from_url(url: str, *, position: int = 1, content: str = "") -> dict
         "score": None,
         "title": title,
         "content": (content or "")[:500],
-        "doc_metadata": {"url": url, "source_url": url},
+        "doc_metadata": {"url": clean, "source_url": clean},
     }
 
 
@@ -62,19 +67,14 @@ def extract_urls_from_text(text: str) -> list[str]:
         return []
     seen: set[str] = set()
     ordered: list[str] = []
-    for match in _INLINE_CITE_RE.finditer(text):
-        url = match.group(2).rstrip(".,);]")
-        if url not in seen:
-            seen.add(url)
-            ordered.append(url)
-    for match in _URL_FIELD_RE.finditer(text):
-        url = match.group(1).rstrip(".,);]")
-        if url not in seen:
-            seen.add(url)
-            ordered.append(url)
-    for match in _BARE_URL_RE.finditer(text):
-        url = match.group(0).rstrip(".,);]")
-        if url not in seen:
+    candidates = [
+        *[match.group(2) for match in _INLINE_CITE_RE.finditer(text)],
+        *[match.group(1) for match in _URL_FIELD_RE.finditer(text)],
+        *[match.group(0) for match in _BARE_URL_RE.finditer(text)],
+    ]
+    for raw in candidates:
+        url = sanitize_citation_url(raw)
+        if url and url not in seen:
             seen.add(url)
             ordered.append(url)
     return ordered
@@ -87,16 +87,19 @@ def resources_from_answer_markdown(answer: str) -> list[dict[str, Any]]:
     by_n: dict[int, str] = {}
     for match in _INLINE_CITE_RE.finditer(answer):
         n = int(match.group(1))
-        url = match.group(2).rstrip(".,);]")
-        by_n.setdefault(n, url)
+        url = sanitize_citation_url(match.group(2))
+        if url:
+            by_n.setdefault(n, url)
     if by_n:
         return [
-            resource_from_url(url, position=n, content=f"[{n}]")
+            resource
             for n, url in sorted(by_n.items())
+            if (resource := resource_from_url(url, position=n, content=f"[{n}]"))
         ]
     return [
-        resource_from_url(url, position=i)
+        resource
         for i, url in enumerate(extract_urls_from_text(answer), start=1)
+        if (resource := resource_from_url(url, position=i))
     ]
 
 
@@ -111,11 +114,12 @@ def resources_from_subagent_tool_response(
     text = tool_response if isinstance(tool_response, str) else str(tool_response)
     if text.strip().lower().startswith("tool invoke error"):
         return []
-    return [
-        {
-            **resource_from_url(url, position=i),
-            "retriever_from": f"subagent:{tool_name}",
-            "document_id": f"subagent:{tool_name}:{url}",
-        }
-        for i, url in enumerate(extract_urls_from_text(text), start=1)
-    ]
+    resources: list[dict[str, Any]] = []
+    for i, url in enumerate(extract_urls_from_text(text), start=1):
+        resource = resource_from_url(url, position=i)
+        if not resource:
+            continue
+        resource["retriever_from"] = f"subagent:{tool_name}"
+        resource["document_id"] = f"subagent:{tool_name}:{url}"
+        resources.append(resource)
+    return resources
