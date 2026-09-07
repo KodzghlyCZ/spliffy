@@ -1,4 +1,4 @@
-"""Enrich Dify SSE: RAGFlow/ZPL citations + friendly tool labels."""
+"""Enrich Dify SSE: RAGFlow/ZPL/subagent citations + friendly tool labels."""
 
 from __future__ import annotations
 
@@ -6,6 +6,10 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
+from app.dify.answer_citations import (
+    resources_from_answer_markdown,
+    resources_from_subagent_tool_response,
+)
 from app.dify.ragflow_citations import (
     build_retriever_resources,
     extract_chunks_from_agent_log_event,
@@ -15,6 +19,7 @@ from app.dify.zpl_citations import (
     extract_zpl_resources_from_agent_log_event,
     extract_zpl_resources_from_agent_thought,
     merge_citation_resources,
+    tool_response_items_from_agent_log,
 )
 from app.settings import RagflowSettings, ToolLabelSettings
 
@@ -37,6 +42,7 @@ class StreamEnricher:
         self._seen_document_ids: set[str] = set()
         self._zpl_resources: list[dict[str, Any]] = []
         self._seen_zpl_keys: set[str] = set()
+        self._answer_parts: list[str] = []
 
     def _active(self) -> bool:
         return (
@@ -55,9 +61,19 @@ class StreamEnricher:
             self._seen_zpl_keys.add(key)
             self._zpl_resources.append(resource)
 
+    def _ingest_subagent_urls(self, event: dict[str, Any]) -> None:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            return
+        for item in tool_response_items_from_agent_log(data):
+            name = str(item.get("tool_call_name") or "")
+            resources = resources_from_subagent_tool_response(name, item.get("tool_response"))
+            self._remember_zpl_resources(resources)
+
     def _ingest_agent_log(self, event: dict[str, Any]) -> None:
         if self._collect_citations:
             self._remember_zpl_resources(extract_zpl_resources_from_agent_log_event(event))
+            self._ingest_subagent_urls(event)
 
         if self._ragflow is None:
             return
@@ -79,6 +95,19 @@ class StreamEnricher:
             return
         self._remember_zpl_resources(extract_zpl_resources_from_agent_thought(event))
 
+    def _ingest_answer_delta(self, event: dict[str, Any]) -> None:
+        if not self._collect_citations:
+            return
+        piece = event.get("answer")
+        if isinstance(piece, str) and piece:
+            self._answer_parts.append(piece)
+            return
+        data = event.get("data")
+        if isinstance(data, dict):
+            text = data.get("text")
+            if isinstance(text, str) and text:
+                self._answer_parts.append(text)
+
     async def _resources_for_end_event(self) -> list[dict[str, Any]]:
         ragflow_resources: list[dict[str, Any]] = []
         if self._ragflow is not None and self._chunks:
@@ -91,11 +120,14 @@ class StreamEnricher:
                     dataset_name=self._ragflow.dataset_name,
                 )
             except Exception:
-                # Don't drop ZPL citations if RAGFlow enrichment fails.
                 ragflow_resources = []
 
-        # ZPL first so law URLs aren't crowded out by RAGFlow's top-N docs.
-        return merge_citation_resources(self._zpl_resources, ragflow_resources)
+        answer_resources = resources_from_answer_markdown("".join(self._answer_parts))
+        # Prefer answer numbering, then ZPL/subagent, then RAGFlow docs.
+        return merge_citation_resources(
+            answer_resources,
+            merge_citation_resources(self._zpl_resources, ragflow_resources),
+        )
 
     def _merge_resources(
         self,
@@ -112,7 +144,6 @@ class StreamEnricher:
 
         existing = metadata.get("retriever_resources")
         if isinstance(existing, list) and existing:
-            # Our ZPL/RAGFlow list first so law URLs keep slots when Dify already sent docs.
             metadata["retriever_resources"] = merge_citation_resources(resources, list(existing))
             return event
 
@@ -120,9 +151,11 @@ class StreamEnricher:
         return event
 
     async def _process_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
-        """Return rewritten event, or None to keep the original block bytes."""
         event_name = event.get("event")
         changed = False
+
+        if event_name in {"message", "agent_message", "text_chunk"}:
+            self._ingest_answer_delta(event)
 
         if event_name == "agent_log":
             self._ingest_agent_log(event)

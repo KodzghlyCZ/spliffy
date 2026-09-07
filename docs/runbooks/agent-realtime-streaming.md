@@ -25,7 +25,7 @@ Browser  →  Spliffy backend (FastAPI)  →  Dify API
 | Chat UI | `frontend/src/components/Chat.tsx` | Message list, composer, stream handler |
 | `frontend/src/lib/stream/` | Event reducer, thinking display, citations (see `streamState.ts` re-exports) |
 | `frontend/src/lib/streamState.ts` | Public re-exports for stream state |
-| `backend/app/dify/thought_rewrite.py` | Friendly tool labels + final-answer stripping on SSE |
+| `backend/app/dify/thought_rewrite.py` | Friendly tool labels, truncated tool observations, final-answer stripping |
 | `backend/app/dify/stream_enricher.py` | SSE enricher: citations + delegates thought rewrite |
 | Workflow UI | `frontend/src/components/WorkflowProgress.tsx` | Node stepper for Chatflow apps |
 
@@ -109,11 +109,11 @@ Stream events are applied via `applyStreamEvent()` in `frontend/src/lib/streamSt
 
 The thinking UI is designed to feel like Cursor's inline reasoning display:
 
-1. **Left accent bar** with a compact header ("Thinking" while live, "Thought" when done).
+1. **Left accent bar** with a compact header ("Thinking" while tools run, "Thought process" / "Postup" once the answer starts).
 2. **Streaming prose** — `reasoning_chunk` text appears as muted narrative with a blinking cursor.
-3. **Compact action lines** — tool calls shown as `→ Used {tool}` rather than raw JSON.
-4. **Details on demand** — tool inputs hidden behind a small "Details" expander.
-5. **Auto-expand while streaming**, collapsible when complete.
+3. **Tool rows** — friendly `tool_labels` plus a truncated observation preview (~600 chars) under each `sofie_sub_*` / tool call.
+4. **Auto-expand** while streaming and the answer is still empty.
+5. **Animate-collapse** when the first answer character arrives; the header stays clickable to re-expand.
 6. **Auto-scroll** — the thinking body scrolls as new content arrives.
 
 ### While streaming
@@ -126,7 +126,7 @@ The thinking UI is designed to feel like Cursor's inline reasoning display:
 ### After streaming completes
 
 1. `streaming` flag set to `false` on stream end (or `message_end` / `workflow_finished`).
-2. **ThinkingPanel** collapses to a "Thought · N steps" header (click to expand).
+2. **ThinkingPanel** stays collapsed on a "Thought process · N steps" / "Postup" header (click to re-expand). The same collapse already happened at the first answer token.
 3. Answer text remains in the bubble.
 
 ## Configuration
@@ -209,7 +209,7 @@ Use this after deploy or when debugging missing realtime UI.
 
 **Fix:** Backend strips `thought` / `observation` on tool-less `agent_thought` events and on final `agent_log` rounds. Frontend drops thinking items / reasoning that overlap the streamed answer (or match final-answer prose heuristics before the bubble finishes streaming).
 
-**Mangled ↳ lines / answer fragments:** Tool `observation` fields and model prose were rendered as multiline `↳` items. Spliffy now shows **only friendly tool status lines** (e.g. “Hledám v dokumentech”, “Ověřuji legislativu”) — observations are stripped server-side and filtered client-side; multiline splitting applies only to status labels, not prose.
+**Mangled ↳ lines / answer fragments:** Final-answer prose in `thought` / `observation` is still stripped (server heuristic + client overlap filter). **Tool** observations are kept as a truncated preview under the friendly status line — they are not dropped. Multiline splitting still applies only to status labels, not observation text.
 
 **If duplicates persist:** Inspect the last `agent_thought` / `agent_log` SSE payload — note which field carries the answer. Check that Spliffy backend is running with the updated `stream_enricher.py`.
 

@@ -4,12 +4,17 @@ import { normalizeComparableText, normalizeThinkingText, sharedPrefixLength } fr
 const ANSWER_OVERLAP_MIN_CHARS = 120
 
 export const TOOL_STATUS_PREFIXES = [
-  'Hledám v dokumentech',
-  'Ověřuji legislativu',
+  'Hledám',
+  'Ověřuji',
+  'Prohledávám',
+  'Načítám',
+  'Kontroluji',
   'Používám ',
   'Using ',
   'Searching',
   'Verifying',
+  'Fetching',
+  'Checking',
 ] as const
 
 export function isToolStatusLine(text: string): boolean {
@@ -90,13 +95,35 @@ export function shouldIncludeStepThought(
   return true
 }
 
+function isUsableToolLabel(text: string): boolean {
+  return text.length <= 80 && !text.includes('\n') && !text.includes('**')
+}
+
+function isAnswerLike(text: string | undefined, content: string): boolean {
+  if (!text?.trim()) {
+    return false
+  }
+  return textOverlapsAnswer(text, content) || isLikelyFinalAnswerProse(text)
+}
+
+function sanitizeThinkingItem(item: ThinkingItem, content: string): ThinkingItem {
+  if (!item.detail || !isAnswerLike(item.detail, content)) {
+    return item
+  }
+  return { ...item, detail: undefined }
+}
+
 function shouldKeepThinkingItem(item: ThinkingItem, content: string): boolean {
-  if (item.kind === 'observation') {
+  if (isAnswerLike(item.text, content)) {
     return false
   }
 
+  if (item.kind === 'observation') {
+    return !isLikelyFinalAnswerProse(item.text)
+  }
+
   if (item.kind === 'tool') {
-    return item.text.length <= 80 && !item.text.includes('\n') && !item.text.includes('**')
+    return isToolStatusLabel(item.text) || isUsableToolLabel(item.text)
   }
 
   if (item.kind !== 'thought') {
@@ -104,17 +131,6 @@ function shouldKeepThinkingItem(item: ThinkingItem, content: string): boolean {
   }
 
   if (!isToolStatusLabel(item.text)) {
-    return false
-  }
-
-  if (textOverlapsAnswer(item.text, content) || isLikelyFinalAnswerProse(item.text)) {
-    return false
-  }
-
-  if (
-    item.detail &&
-    (textOverlapsAnswer(item.detail, content) || isLikelyFinalAnswerProse(item.detail))
-  ) {
     return false
   }
 
@@ -229,7 +245,9 @@ function dedupeReasoningAgainstItems(reasoning: string, items: ThinkingItem[]): 
 
 function stripAnswerFromThinking(message: Message): Message {
   const content = message.content
-  const items = message.items.filter((item) => shouldKeepThinkingItem(item, content))
+  const items = message.items
+    .map((item) => sanitizeThinkingItem(item, content))
+    .filter((item) => shouldKeepThinkingItem(item, content))
 
   let reasoning = message.reasoning
   if (textOverlapsAnswer(reasoning, content) || isLikelyFinalAnswerProse(reasoning)) {
@@ -241,7 +259,8 @@ function stripAnswerFromThinking(message: Message): Message {
 
 /** Normalize raw thinking items into display-ready state. */
 export function finalizeThinkingDisplay(message: Message): Message {
-  const filtered = message.items.filter((item) => shouldKeepThinkingItem(item, message.content))
+  const sanitized = message.items.map((item) => sanitizeThinkingItem(item, message.content))
+  const filtered = sanitized.filter((item) => shouldKeepThinkingItem(item, message.content))
   const items = dedupeThinkingItems(filtered)
   let reasoning = dedupeReasoningAgainstItems(message.reasoning, items)
 

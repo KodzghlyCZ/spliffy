@@ -7,20 +7,47 @@ export function upsertThinkingItem(items: ThinkingItem[], item: ThinkingItem): T
   const existingIndex = items.findIndex((entry) => entry.id === item.id)
   if (existingIndex >= 0) {
     const next = [...items]
-    next[existingIndex] = { ...next[existingIndex], ...item }
+    const existing = next[existingIndex]
+    next[existingIndex] = {
+      ...existing,
+      ...item,
+      detail: item.detail ?? existing.detail,
+    }
     return next
   }
 
   return [...items, item]
 }
 
-function thoughtItem(
+function thinkingItem(
   id: string,
   text: string,
   status: ThinkingItem['status'],
-  label?: string,
+  options?: {
+    kind?: ThinkingItem['kind']
+    label?: string
+    detail?: string
+  },
 ): ThinkingItem {
-  return { id, kind: 'thought', label, text, status }
+  return {
+    id,
+    kind: options?.kind ?? (options?.detail ? 'tool' : 'thought'),
+    label: options?.label,
+    text,
+    detail: options?.detail,
+    status,
+  }
+}
+
+function pickObservation(
+  metadata: Record<string, unknown>,
+  payload: Record<string, unknown>,
+): string | undefined {
+  return (
+    pickString(metadata.observation) ??
+    pickString(payload.observation) ??
+    pickString(payload.output)
+  )
 }
 
 /** Parse agent_log SSE into a single displayable thinking item (or null). */
@@ -34,6 +61,7 @@ export function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
   const payload = log.data ?? {}
   const label = log.label ?? 'Step'
   const labelLower = label.toLowerCase()
+  const status: ThinkingItem['status'] = log.status === 'running' ? 'running' : 'done'
 
   const thought =
     pickString(metadata.thought) ??
@@ -43,17 +71,33 @@ export function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
     pickString(metadata.action) ??
     pickString(payload.action) ??
     pickString(payload.tool_name)
+  const observation = pickObservation(metadata, payload)
 
   if (labelLower.includes('round') && !action && !thought) {
     return null
   }
 
   if (thought) {
-    return thoughtItem(log.id, thought, log.status === 'running' ? 'running' : 'done', label)
+    return thinkingItem(log.id, thought, status, {
+      kind: observation ? 'tool' : 'thought',
+      label,
+      detail: observation,
+    })
   }
 
   if (action) {
-    return thoughtItem(log.id, action, log.status === 'running' ? 'running' : 'done', label)
+    return thinkingItem(log.id, action, status, {
+      kind: 'tool',
+      label,
+      detail: observation,
+    })
+  }
+
+  if (observation) {
+    return thinkingItem(log.id, observation, status, {
+      kind: 'observation',
+      label,
+    })
   }
 
   if (labelLower.includes('thought') || labelLower.includes('thinking')) {
@@ -61,7 +105,7 @@ export function parseAgentLog(event: DifyStreamEvent): ThinkingItem | null {
     if (!fallback) {
       return null
     }
-    return thoughtItem(log.id, fallback, log.status === 'running' ? 'running' : 'done', label)
+    return thinkingItem(log.id, fallback, status, { label })
   }
 
   return null
@@ -106,7 +150,10 @@ export function syncAgentStepItems(
 
     nextItems = upsertThinkingItem(
       nextItems,
-      thoughtItem(`${step.id}-thought`, step.thought!, step.status),
+      thinkingItem(`${step.id}-thought`, step.thought!, step.status, {
+        kind: step.observation ? 'tool' : 'thought',
+        detail: step.observation,
+      }),
     )
   }
 

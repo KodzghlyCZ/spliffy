@@ -43,7 +43,7 @@
     "streamingUnsupported": "Streaming is not supported in this browser",
     "thinking": {
       "active": "Thinking",
-      "done": "Thought",
+      "done": "Thought process",
       "stepCount": "{{count}} steps",
       "usedTool": "Used {{tool}}",
       "details": "Details"

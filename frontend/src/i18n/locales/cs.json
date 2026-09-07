@@ -43,7 +43,7 @@
     "streamingUnsupported": "Tento prohlížeč nepodporuje streamování",
     "thinking": {
       "active": "Přemýšlím",
-      "done": "Úvaha",
+      "done": "Postup",
       "stepCount": "{{count}} kroků",
       "usedTool": "Použito {{tool}}",
       "details": "Detaily"

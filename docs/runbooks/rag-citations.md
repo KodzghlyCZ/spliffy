@@ -125,7 +125,8 @@ Citations arrive on **`message_end`**, not a separate `retriever_resources` even
 | `frontend/src/lib/streamState.ts` | `parseRetrieverResources()`, `Message.citations` |
 | `frontend/src/components/CitationSources.tsx` | Numbered chips + external link icon |
 | `backend/app/dify/routes.py` | Passes `citations_enabled`; wraps SSE with `StreamEnricher` |
-| `backend/app/dify/stream_enricher.py` | Injects `retriever_resources` on `message_end` from agent_log chunks |
+| `backend/app/dify/stream_enricher.py` | Injects `retriever_resources` on `message_end` from agent_log chunks, subagent URLs, and `[n](url)` in the answer |
+| `backend/app/dify/answer_citations.py` | Citation chips from inline markdown and `sofie_sub_*` tool text |
 | `backend/app/dify/ragflow_citations.py` | Parses RAGFlow tool responses; fetches document `meta_fields` |
 | `backend/app/dify/zpl_citations.py` | Parses `get_law_excerpt` tool JSON → citation resources |
 | `backend/app/dify/tool_labels.py` | Localized friendly labels for agent tool names |
@@ -166,7 +167,7 @@ When the Dify agent calls **zpl-mcp** `get_law_excerpt`, Spliffy parses the tool
 - **`excerpt`** — short text snippet (Dify-safe field name; not `text`)
 - **`reference`**, **`paragraph`** — for chip titles / tool labels
 
-ZPL and RAGFlow sources are merged on `message_end` (`merge_citation_resources` in `stream_enricher.py`). Configure the Dify agent to cite with in-text markdown links — see [§5 Inline citations](#5-inline-citations-intext-nurl).
+ZPL, subagent (`sofie_sub_*`), inline `[n](url)`, and RAGFlow sources are merged on `message_end` (`merge_citation_resources` in `stream_enricher.py`). Nested RAGFlow retrieval inside subagent workflows is harvested from the subagent tool text — parent `retrieval` events are not required. Configure the Dify agent to cite with in-text markdown links — see [§5 Inline citations](#5-inline-citations-intext-nurl).
 
 ### Tool labels
 
