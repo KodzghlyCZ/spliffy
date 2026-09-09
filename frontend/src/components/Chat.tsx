@@ -11,6 +11,7 @@ import {
   type Message,
 } from '../lib/streamState'
 import { CitationSources } from './CitationSources'
+import { ConversationExport, printConversation } from './ConversationExport'
 import { ThinkingPanel } from './ThinkingPanel'
 import { MessageContent } from './MessageContent'
 import { WorkflowProgress } from './WorkflowProgress'
@@ -220,6 +221,15 @@ export function Chat() {
     setError(null)
   }
 
+  function handleExportPdf() {
+    if (sending || !hasUserMessages) {
+      return
+    }
+
+    const stamp = new Date().toISOString().slice(0, 10)
+    printConversation(`${assistantName} ${t('chat.exportPdfTitle')} ${stamp}`)
+  }
+
   return (
     <div className="chat">
       <div className="chat-thread">
@@ -335,6 +345,14 @@ export function Chat() {
               <button
                 className="chat-reset"
                 type="button"
+                onClick={handleExportPdf}
+                disabled={sending || !hasUserMessages}
+              >
+                {t('chat.exportPdf')}
+              </button>
+              <button
+                className="chat-reset"
+                type="button"
                 onClick={handleResetConversation}
                 disabled={sending || !canResetConversation}
               >
@@ -358,6 +376,13 @@ export function Chat() {
           <p className="chat-hint">{chatHint ?? t('chat.hint')}</p>
         </div>
       </div>
+
+      <ConversationExport
+        messages={messages}
+        assistantName={assistantName}
+        userLabel={t('chat.you')}
+        markdown={markdownEnabled}
+      />
     </div>
   )
 }

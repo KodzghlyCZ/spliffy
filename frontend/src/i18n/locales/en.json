@@ -35,6 +35,8 @@
     "typing": "Assistant is typing",
     "placeholder": "Message {{name}}…",
     "send": "Send message",
+    "exportPdf": "Export PDF",
+    "exportPdfTitle": "conversation",
     "reset": "Reset",
     "hint": "Enter to send · Shift+Enter for a new line",
     "suggestions": "Suggested questions",

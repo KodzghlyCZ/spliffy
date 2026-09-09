@@ -35,6 +35,8 @@
     "typing": "Asistent píše",
     "placeholder": "Napsat {{name}}…",
     "send": "Odeslat zprávu",
+    "exportPdf": "Exportovat PDF",
+    "exportPdfTitle": "konverzace",
     "reset": "Resetovat",
     "hint": "Enter pro odeslání · Shift+Enter pro nový řádek",
     "suggestions": "Navrhované otázky",

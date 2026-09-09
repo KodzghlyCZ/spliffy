@@ -1,0 +1,120 @@
+.conversation-export {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 16mm 16mm 18mm;
+  }
+
+  html,
+  body,
+  #root,
+  .app,
+  .app-main,
+  .chat {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #18181b !important;
+  }
+
+  .app-header,
+  .chat-thread,
+  .chat-composer-wrap {
+    display: none !important;
+  }
+
+  .conversation-export {
+    display: block;
+    max-width: 180mm;
+    margin: 0 auto;
+    color: #18181b;
+    font-size: 11pt;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .conversation-export__header {
+    margin-bottom: 1.4rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1pt solid #d4d4d8;
+  }
+
+  .conversation-export__header h1 {
+    margin: 0 0 0.2rem;
+    font-size: 16pt;
+    color: #18181b;
+  }
+
+  .conversation-export__header p {
+    margin: 0;
+    color: #52525b;
+    font-size: 9.5pt;
+  }
+
+  .conversation-export__turn {
+    margin: 0 0 1.15rem;
+  }
+
+  .conversation-export__turn h2 {
+    margin: 0 0 0.35rem;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #52525b;
+    break-after: avoid;
+  }
+
+  .conversation-export__turn--user .conversation-export__body {
+    padding: 0.55rem 0.75rem;
+    border-left: 3pt solid #2563eb;
+    background: #f4f4f5;
+    white-space: pre-wrap;
+  }
+
+  .conversation-export__turn--assistant .conversation-export__body {
+    color: #18181b;
+  }
+
+  .conversation-export__body .chat-markdown {
+    color: #18181b;
+  }
+
+  .conversation-export__body .chat-markdown a {
+    color: #1d4ed8;
+  }
+
+  .conversation-export__sources {
+    margin-top: 0.7rem;
+    padding-top: 0.45rem;
+    border-top: 0.5pt solid #e4e4e7;
+  }
+
+  .conversation-export__sources h3 {
+    margin: 0 0 0.35rem;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #3f3f46;
+  }
+
+  .conversation-export__sources ol {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+
+  .conversation-export__sources li {
+    margin: 0.2rem 0;
+    font-size: 9pt;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .conversation-export__sources a {
+    color: #1d4ed8;
+    text-decoration: none;
+    word-break: break-all;
+  }
+}
