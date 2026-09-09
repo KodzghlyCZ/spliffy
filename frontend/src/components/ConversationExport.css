@@ -21,7 +21,8 @@
 
   .app-header,
   .chat-thread,
-  .chat-composer-wrap {
+  .chat-composer-wrap,
+  .thinking-mascot {
     display: none !important;
   }
 

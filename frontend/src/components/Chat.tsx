@@ -12,6 +12,7 @@ import {
 } from '../lib/streamState'
 import { CitationSources } from './CitationSources'
 import { ConversationExport, printConversation } from './ConversationExport'
+import { ThinkingMascot } from './ThinkingMascot'
 import { ThinkingPanel } from './ThinkingPanel'
 import { MessageContent } from './MessageContent'
 import { WorkflowProgress } from './WorkflowProgress'
@@ -175,6 +176,12 @@ export function Chat() {
 
   const assistantName = getName('default')
   const messageName = getName('message')
+  const waitingForAnswer =
+    sending &&
+    !messages.some(
+      (message) =>
+        message.role === 'assistant' && message.streaming && message.content.trim().length > 0,
+    )
 
   if (authLoading || chatEnabled === null) {
     return <div className="chat-panel chat-status">{t('chat.loading')}</div>
@@ -264,7 +271,10 @@ export function Chat() {
               const isUser = message.role === 'user'
               const isStreaming = sending && message.streaming
               const showTyping =
-                isStreaming && message.content === '' && !hasAgentActivity(message)
+                isStreaming &&
+                message.content === '' &&
+                !hasAgentActivity(message) &&
+                !waitingForAnswer
               const showBubble =
                 isUser || message.content.trim().length > 0 || showTyping
 
@@ -325,6 +335,8 @@ export function Chat() {
           <div ref={bottomRef} />
         </div>
       </div>
+
+      <ThinkingMascot active={waitingForAnswer} label={t('chat.thinking.active')} />
 
       <div className="chat-composer-wrap">
         <div className="chat-composer-shell">
